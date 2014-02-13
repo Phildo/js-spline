@@ -1,0 +1,25 @@
+<html>
+<head>
+<title>Spline JS Sample</title>
+<script type="text/javascript" src="spline.js"></script>
+<script type="text/javascript">
+
+var spline;
+var load = function()
+{
+  spline = new Spline(
+    {
+      "parentContainer":document.getElementById("spline"),
+      "xlen":10,
+      "ylen":10,
+    }
+  );
+}
+
+</script>
+</head>
+<body onload="load()">
+<a href="https://github.com/Phildo/js-spline">github</a><br />
+<span id="spline"></span>
+</body>
+</html>
