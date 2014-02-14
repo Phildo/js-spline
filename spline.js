@@ -11,19 +11,20 @@ function Spline(params)
     this.parentContainer.width  = 100;
     this.parentContainer.height = 100;
   }
-  if(params.hasOwnProperty('points'))    this.points    = params.points;    else this.points    = [{"x":-1,"y":1},{"x":-1,"y":-1},{"x":1,"y":-1}];
-  if(params.hasOwnProperty('speed'))     this.speed     = params.speed;     else this.speed     = 30;
-  if(params.hasOwnProperty('width'))     this.width     = params.width;     else this.width     = 0;
-  if(params.hasOwnProperty('height'))    this.height    = params.height;    else this.height    = 0;
-  if(params.hasOwnProperty('xlen'))      this.xlen      = params.xlen;      else this.xlen      = 0;
-  if(params.hasOwnProperty('ylen'))      this.ylen      = params.ylen;      else this.ylen      = 0;
-  if(params.hasOwnProperty('origin'))    this.origin    = params.origin;    else this.origin    = "center";
-  if(params.hasOwnProperty('ptradius'))  this.ptradius  = params.ptradius;  else this.ptradius  = 3;
-  if(params.hasOwnProperty('ptcolor'))   this.ptcolor   = params.ptcolor;   else this.ptcolor   = "#000000";
-  if(params.hasOwnProperty('linewidth')) this.linewidth = params.linewidth; else this.linewidth = 2;
-  if(params.hasOwnProperty('linecolor')) this.linecolor = params.linecolor; else this.linecolor = "#000000";
-  if(params.hasOwnProperty('bgcolor'))   this.bgcolor   = params.bgcolor;   else this.bgcolor   = "#FFFFFF";
-  if(params.hasOwnProperty('editable'))  this.editable  = params.editable;  else this.editable  = true;
+  if(params.hasOwnProperty('points'))     this.points     = params.points;     else this.points     = [{"x":-1,"y":1},{"x":-1,"y":-1},{"x":1,"y":-1}];
+  if(params.hasOwnProperty('speed'))      this.speed      = params.speed;      else this.speed      = 60;
+  if(params.hasOwnProperty('width'))      this.width      = params.width;      else this.width      = 0;
+  if(params.hasOwnProperty('height'))     this.height     = params.height;     else this.height     = 0;
+  if(params.hasOwnProperty('xlen'))       this.xlen       = params.xlen;       else this.xlen       = 0;
+  if(params.hasOwnProperty('ylen'))       this.ylen       = params.ylen;       else this.ylen       = 0;
+  if(params.hasOwnProperty('origin'))     this.origin     = params.origin;     else this.origin     = "center";
+  if(params.hasOwnProperty('ptradius'))   this.ptradius   = params.ptradius;   else this.ptradius   = 3;
+  if(params.hasOwnProperty('linewidth'))  this.linewidth  = params.linewidth;  else this.linewidth  = 2;
+  if(params.hasOwnProperty('linecolors')) this.linecolors = params.linecolors; else this.linecolors = ["#000000","#44AA44","#4444AA","#AA4444"];
+  if(params.hasOwnProperty('ptcolors'))   this.ptcolors   = params.ptcolors;   else this.ptcolors   = ["#000000","#44AA44","#4444AA","#AA4444"];
+  if(params.hasOwnProperty('drawcolor'))  this.drawcolor  = params.drawcolor;  else this.drawcolor  = "#FF0000";
+  if(params.hasOwnProperty('bgcolor'))    this.bgcolor    = params.bgcolor;    else this.bgcolor    = "#FFFFFF";
+  if(params.hasOwnProperty('editable'))   this.editable   = params.editable;   else this.editable   = true;
 
   //Special cases of inferring certain defaults
   if(!this.xlen && !this.ylen)
@@ -79,12 +80,13 @@ function Spline(params)
     }
 
     //set context
-    self.displayCanvas.context.fillStyle = self.ptcolor;
-    self.displayCanvas.context.strokeStyle = self.linecolor;
+    self.displayCanvas.context.fillStyle = self.ptcolors[0];
+    self.displayCanvas.context.strokeStyle = self.linecolors[0];
     self.displayCanvas.context.lineWidth = self.linewidth;
 
     var oldPts;
     var newPts = self.points;;
+    var pass = 0;
     while(newPts.length > 1)
     {
       //draw pts
@@ -104,6 +106,10 @@ function Spline(params)
         pixCoordB = ptToPix(oldPts[i+1]);
         drawLine(pixCoordA.x,pixCoordA.y,pixCoordB.x,pixCoordB.y,self.displayCanvas);
       }
+
+      pass++;
+      self.displayCanvas.context.fillStyle   = self.ptcolors[pass%self.ptcolors.length];
+      self.displayCanvas.context.strokeStyle = self.linecolors[pass%self.linecolors.length];
     }
 
     //draw result pt
@@ -111,6 +117,7 @@ function Spline(params)
     drawPt(pixCoordA.x,pixCoordA.y,self.ptradius,self.displayCanvas);
 
     //draw pt on scratch canvas for persistance
+    self.scratchCanvas.context.fillStyle = self.drawcolor;
     drawRect(pixCoordA.x,pixCoordA.y,1,1,self.scratchCanvas)
     blitCanvas(self.scratchCanvas,self.displayCanvas);
   }
@@ -119,7 +126,7 @@ function Spline(params)
   this.tick = function()
   {
     draw();
-    t+=0.005;
+    t+=0.001;
     if(t > 1) { t = 0; self.scratchCanvas.context.clearRect(0, 0, self.width, self.height); }
   };
 
@@ -172,7 +179,7 @@ function Spline(params)
   {
     var pt = pixToPt({"x":evt.offsetX,"y":evt.offsetY});
     for(var i = 0; i < self.points.length; i++)
-      if(Math.sqrt(Math.pow(self.points[i].x-pt.x,2)+Math.pow(self.points[i].y-pt.y,2)) < (self.ptradius*self.xlen/self.width))
+      if(Math.sqrt(Math.pow(self.points[i].x-pt.x,2)+Math.pow(self.points[i].y-pt.y,2)) < (self.ptradius*self.xlen/self.width)*2)
         ptDragging = self.points[i];
   }
   function stopDrag()
