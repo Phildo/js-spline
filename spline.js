@@ -83,61 +83,45 @@ function Spline(params)
     self.displayCanvas.context.strokeStyle = self.linecolor;
     self.displayCanvas.context.lineWidth = self.linewidth;
 
-    //draw primary points
-    for(var i = 0; i < self.points.length; i++)
+    var oldPts;
+    var newPts = self.points;;
+    while(newPts.length > 1)
     {
-      pixCoordA = ptToPix(self.points[i]);
-      self.displayCanvas.context.beginPath();
-      self.displayCanvas.context.arc(pixCoordA.x, pixCoordA.y, self.ptradius, 0, 2*Math.PI, false);
-      self.displayCanvas.context.fill();
-      self.displayCanvas.context.stroke();
-    }
-    //draw primary lines
-    for(var i = 0; i < self.points.length-1; i++)
-    {
-      pixCoordA = ptToPix(self.points[i]);
-      pixCoordB = ptToPix(self.points[i+1]);
-      self.displayCanvas.context.beginPath();
-      self.displayCanvas.context.moveTo(pixCoordA.x, pixCoordA.y);
-      self.displayCanvas.context.lineTo(pixCoordB.x, pixCoordB.y);
-      self.displayCanvas.context.stroke();
+      //draw pts
+      oldPts = newPts;
+      for(var i = 0; i < oldPts.length; i++)
+      {
+        pixCoordA = ptToPix(oldPts[i]);
+        self.displayCanvas.context.beginPath();
+        self.displayCanvas.context.arc(pixCoordA.x, pixCoordA.y, self.ptradius, 0, 2*Math.PI, false);
+        self.displayCanvas.context.fill();
+        self.displayCanvas.context.stroke();
+      }
+
+      //draw lines, calculate next pts
+      newPts = [];
+      for(var i = 0; i < oldPts.length-1; i++)
+      {
+        newPts[i] = interpaPt(oldPts[i],oldPts[i+1],t);
+        pixCoordA = ptToPix(oldPts[i]);
+        pixCoordB = ptToPix(oldPts[i+1]);
+        self.displayCanvas.context.beginPath();
+        self.displayCanvas.context.moveTo(pixCoordA.x, pixCoordA.y);
+        self.displayCanvas.context.lineTo(pixCoordB.x, pixCoordB.y);
+        self.displayCanvas.context.stroke();
+      }
     }
 
-    var secondaryPts = [];
-    //draw secondary points
-    for(var i = 0; i < self.points.length-1; i++)
-    {
-      secondaryPts[i] = interpaPt(self.points[i],self.points[i+1],t);
-      pixCoordA = ptToPix(secondaryPts[i]);
-      self.displayCanvas.context.beginPath();
-      self.displayCanvas.context.arc(pixCoordA.x, pixCoordA.y, self.ptradius, 0, 2*Math.PI, false);
-      self.displayCanvas.context.fill();
-      self.displayCanvas.context.stroke();
-    }
-    //draw secondary lines
-    for(var i = 0; i < secondaryPts.length-1; i++)
-    {
-      pixCoordA = ptToPix(secondaryPts[i]);
-      pixCoordB = ptToPix(secondaryPts[i+1]);
-      self.displayCanvas.context.beginPath();
-      self.displayCanvas.context.moveTo(pixCoordA.x, pixCoordA.y);
-      self.displayCanvas.context.lineTo(pixCoordB.x, pixCoordB.y);
-      self.displayCanvas.context.stroke();
-    }
+    //draw result pt
+    pixCoordA = ptToPix(newPts[0]);
+    self.displayCanvas.context.beginPath();
+    self.displayCanvas.context.arc(pixCoordA.x, pixCoordA.y, self.ptradius, 0, 2*Math.PI, false);
+    self.displayCanvas.context.fill();
+    self.displayCanvas.context.stroke();
 
-    //draw final pts
-    for(var i = 0; i < secondaryPts.length-1; i++)
-    {
-      pixCoordA = ptToPix(interpaPt(secondaryPts[i],secondaryPts[i+1],t));
-      self.displayCanvas.context.beginPath();
-      self.displayCanvas.context.arc(pixCoordA.x, pixCoordA.y, self.ptradius, 0, 2*Math.PI, false);
-      self.displayCanvas.context.fill();
-      self.displayCanvas.context.stroke();
-
-      //draw pt on scratch canvas for persistance
-      self.scratchCanvas.context.fillRect(pixCoordA.x, pixCoordA.y, 1, 1);
-      self.displayCanvas.context.drawImage(self.scratchCanvas, 0, 0, self.width, self.height, 0, 0, self.width, self.height);
-    }
+    //draw pt on scratch canvas for persistance
+    self.scratchCanvas.context.fillRect(pixCoordA.x, pixCoordA.y, 1, 1);
+    self.displayCanvas.context.drawImage(self.scratchCanvas, 0, 0, self.width, self.height, 0, 0, self.width, self.height);
   }
 
   this.tick = function()
