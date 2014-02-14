@@ -12,7 +12,8 @@ function Spline(params)
     this.parentContainer.height = 100;
   }
   if(params.hasOwnProperty('points'))     this.points     = params.points;     else this.points     = [{"x":-1,"y":1},{"x":-1,"y":-1},{"x":1,"y":-1}];
-  if(params.hasOwnProperty('speed'))      this.speed      = params.speed;      else this.speed      = 60;
+  if(params.hasOwnProperty('fps'))        this.fps        = params.fps;        else this.fps        = 60;
+  if(params.hasOwnProperty('rate'))       this.rate       = params.rate;       else this.rate       = 0.001;
   if(params.hasOwnProperty('width'))      this.width      = params.width;      else this.width      = 0;
   if(params.hasOwnProperty('height'))     this.height     = params.height;     else this.height     = 0;
   if(params.hasOwnProperty('xlen'))       this.xlen       = params.xlen;       else this.xlen       = 0;
@@ -25,6 +26,8 @@ function Spline(params)
   if(params.hasOwnProperty('drawcolor'))  this.drawcolor  = params.drawcolor;  else this.drawcolor  = "#FF0000";
   if(params.hasOwnProperty('bgcolor'))    this.bgcolor    = params.bgcolor;    else this.bgcolor    = "#FFFFFF";
   if(params.hasOwnProperty('editable'))   this.editable   = params.editable;   else this.editable   = true;
+  if(params.hasOwnProperty('timectrls'))  this.timectrls  = params.timectrls;  else this.timectrls  = true;
+  if(params.hasOwnProperty('clearbtn'))   this.clearbtn   = params.clearbtn;   else this.clearbtn   = true;
 
   //Special cases of inferring certain defaults
   if(!this.xlen && !this.ylen)
@@ -120,17 +123,48 @@ function Spline(params)
     self.scratchCanvas.context.fillStyle = self.drawcolor;
     drawRect(pixCoordA.x,pixCoordA.y,1,1,self.scratchCanvas)
     blitCanvas(self.scratchCanvas,self.displayCanvas);
+
+    //draw ctrls
+    if(self.timectrls)
+    {
+      self.displayCanvas.context.save();
+      self.displayCanvas.context.strokeStyle = "#666666";
+      self.displayCanvas.context.lineWidth = 5;
+      var otow = self.width/20;  //one twentieth of width
+      var ofow = self.width/50; //one fiftieth of width
+      //back
+      drawLine(ofow,self.height-ofow-ofow,ofow+otow,self.height-ofow-ofow-ofow,self.displayCanvas);
+      drawLine(ofow,self.height-ofow-ofow,ofow+otow,self.height-ofow,self.displayCanvas);
+      //pause
+      drawLine(otow+ofow+ofow+ofow,self.height-ofow-otow,otow+ofow+ofow+ofow,self.height-ofow,self.displayCanvas);
+      drawLine(otow+ofow+ofow+otow,self.height-ofow-otow,otow+ofow+ofow+otow,self.height-ofow,self.displayCanvas);
+      //play
+      drawLine(otow+otow+otow+ofow+otow,self.height-ofow-ofow,otow+otow+otow+ofow,self.height-ofow-ofow-ofow,self.displayCanvas);
+      drawLine(otow+otow+otow+ofow+otow,self.height-ofow-ofow,otow+otow+otow+ofow,self.height-ofow,self.displayCanvas);
+      self.displayCanvas.context.restore();
+    }
+    if(self.clearbtn)
+    {
+      self.displayCanvas.context.save();
+      self.displayCanvas.context.strokeStyle = "#666666";
+      self.displayCanvas.context.lineWidth = 5;
+      var otow = self.width/20;  //one twentieth of width
+      var ofow = self.width/50; //one fiftieth of width
+      drawLine(self.width-ofow-otow,self.height-ofow-otow,self.width-ofow,     self.height-ofow,self.displayCanvas);
+      drawLine(self.width-ofow     ,self.height-ofow-otow,self.width-ofow-otow,self.height-ofow,self.displayCanvas);
+      self.displayCanvas.context.restore();
+    }
   }
 
   var ticker;
   this.tick = function()
   {
     draw();
-    t+=0.001;
+    t+=self.rate;
     if(t > 1) { t = 0; self.scratchCanvas.context.clearRect(0, 0, self.width, self.height); }
   };
 
-  this.play  = function(){ if(!ticker) { self.tick(); ticker = setInterval(self.tick,Math.round(1000/self.speed)); } };
+  this.play  = function(){ if(!ticker) { self.tick(); ticker = setInterval(self.tick,Math.round(1000/self.fps)); } };
   this.pause = function(){ if(ticker)  ticker = clearInterval(ticker); }
 
   //canvas helpers
@@ -181,6 +215,27 @@ function Spline(params)
     for(var i = 0; i < self.points.length; i++)
       if(Math.sqrt(Math.pow(self.points[i].x-pt.x,2)+Math.pow(self.points[i].y-pt.y,2)) < (self.ptradius*self.xlen/self.width)*2)
         ptDragging = self.points[i];
+
+    if(!ptDragging && self.clearbtn)
+    {
+      if(evt.offsetX > self.width-(self.width/10) && evt.offsetY > self.height-(self.width/10))
+        self.scratchCanvas.context.clearRect(0, 0, self.width, self.height);
+    }
+    if(!ptDragging && self.timectrls)
+    {
+      //back
+      if(evt.offsetX < (self.width/10) && evt.offsetY > self.height-(self.width/10))
+      {
+        t = 0;
+        self.scratchCanvas.context.clearRect(0, 0, self.width, self.height);
+      }
+      //pause
+      else if(evt.offsetX < (self.width/6) && evt.offsetY > self.height-(self.width/10))
+        self.pause();
+      //play
+      else if(evt.offsetX < (self.width/2) && evt.offsetY > self.height-(self.width/10))
+        self.play();
+    }
   }
   function stopDrag()
   {
@@ -192,6 +247,8 @@ function Spline(params)
     var pt = pixToPt({"x":evt.offsetX,"y":evt.offsetY});
     ptDragging.x = pt.x;
     ptDragging.y = pt.y;
+
+    if(!ticker) draw();
   }
   if(this.editable)
   {
