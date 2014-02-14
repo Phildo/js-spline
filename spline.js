@@ -23,6 +23,7 @@ function Spline(params)
   if(params.hasOwnProperty('linewidth')) this.linewidth = params.linewidth; else this.linewidth = 2;
   if(params.hasOwnProperty('linecolor')) this.linecolor = params.linecolor; else this.linecolor = "#000000";
   if(params.hasOwnProperty('bgcolor'))   this.bgcolor   = params.bgcolor;   else this.bgcolor   = "#FFFFFF";
+  if(params.hasOwnProperty('editable'))  this.editable  = params.editable;  else this.editable  = true;
 
   //Special cases of inferring certain defaults
   if(!this.xlen && !this.ylen)
@@ -43,6 +44,10 @@ function Spline(params)
   var ptToPix = function(pt)
   {
     return { "x":(self.width/2+(pt.x*(self.width/self.xlen)))+0.5, "y":(self.height/2-(pt.y*(self.height/self.ylen)))+0.5 }
+  }
+  var pixToPt = function(pix)
+  {
+    return { "x":(pix.x-self.width/2)/(self.width/self.xlen), "y":-(pix.y-self.height/2)/(self.height/self.ylen) }
   }
   var interpaPt = function(pta, ptb, t)
   {
@@ -160,6 +165,34 @@ function Spline(params)
   this.scratchCanvas.context.webkitImageSmoothingEnabled = false;
 
   this.parentContainer.appendChild(this.displayCanvas);
+
+  //editing
+  var ptDragging;
+  function startDrag(evt)
+  {
+    var pt = pixToPt({"x":evt.offsetX,"y":evt.offsetY});
+    for(var i = 0; i < self.points.length; i++)
+      if(Math.sqrt(Math.pow(self.points[i].x-pt.x,2)+Math.pow(self.points[i].y-pt.y,2)) < (self.ptradius*self.xlen/self.width))
+        ptDragging = self.points[i];
+  }
+  function stopDrag()
+  {
+    ptDragging = false;
+  }
+  function drag(evt)
+  {
+    if(!ptDragging) return;
+    var pt = pixToPt({"x":evt.offsetX,"y":evt.offsetY});
+    ptDragging.x = pt.x;
+    ptDragging.y = pt.y;
+  }
+  if(this.editable)
+  {
+    self.displayCanvas.addEventListener('mousedown', startDrag, false);
+    self.displayCanvas.addEventListener('mouseup',   stopDrag,  false);
+    self.displayCanvas.addEventListener('mousemove', drag,      false);
+  }
+
 
   this.play();
 };
