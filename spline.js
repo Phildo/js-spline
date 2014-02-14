@@ -12,6 +12,7 @@ function Spline(params)
     this.parentContainer.height = 100;
   }
   if(params.hasOwnProperty('points'))    this.points    = params.points;    else this.points    = [{"x":-1,"y":1},{"x":-1,"y":-1},{"x":1,"y":-1}];
+  if(params.hasOwnProperty('speed'))     this.speed     = params.speed;     else this.speed     = 30;
   if(params.hasOwnProperty('width'))     this.width     = params.width;     else this.width     = 0;
   if(params.hasOwnProperty('height'))    this.height    = params.height;    else this.height    = 0;
   if(params.hasOwnProperty('xlen'))      this.xlen      = params.xlen;      else this.xlen      = 0;
@@ -58,24 +59,18 @@ function Spline(params)
     self.displayCanvas.context.lineWidth = 1;
 
     //clear bg
-    self.displayCanvas.context.fillRect(0, 0, self.width, self.height);
+    drawRect(0,0,self.width,self.height,self.displayCanvas);
 
     //draw grid
     for(var x = 0; x < self.xlen; x++) //vertical lines
     {
       pixCoordA = ptToPix({"x":x-(self.xlen/2),"y":0});
-      self.displayCanvas.context.beginPath();
-      self.displayCanvas.context.moveTo(pixCoordA.x, 0);
-      self.displayCanvas.context.lineTo(pixCoordA.x, self.height);
-      self.displayCanvas.context.stroke();
+      drawLine(pixCoordA.x,0,pixCoordA.x,self.height,self.displayCanvas);
     }
     for(var y = 0; y < self.ylen; y++) //horizontal lines
     {
       pixCoordA = ptToPix({"x":0,"y":y-(self.ylen/2)});
-      self.displayCanvas.context.beginPath();
-      self.displayCanvas.context.moveTo(0,          pixCoordA.y);
-      self.displayCanvas.context.lineTo(self.width, pixCoordA.y);
-      self.displayCanvas.context.stroke();
+      drawLine(0,pixCoordA.y,self.width,pixCoordA.y,self.displayCanvas);
     }
 
     //set context
@@ -92,10 +87,7 @@ function Spline(params)
       for(var i = 0; i < oldPts.length; i++)
       {
         pixCoordA = ptToPix(oldPts[i]);
-        self.displayCanvas.context.beginPath();
-        self.displayCanvas.context.arc(pixCoordA.x, pixCoordA.y, self.ptradius, 0, 2*Math.PI, false);
-        self.displayCanvas.context.fill();
-        self.displayCanvas.context.stroke();
+        drawPt(pixCoordA.x,pixCoordA.y,self.ptradius,self.displayCanvas);
       }
 
       //draw lines, calculate next pts
@@ -105,35 +97,53 @@ function Spline(params)
         newPts[i] = interpaPt(oldPts[i],oldPts[i+1],t);
         pixCoordA = ptToPix(oldPts[i]);
         pixCoordB = ptToPix(oldPts[i+1]);
-        self.displayCanvas.context.beginPath();
-        self.displayCanvas.context.moveTo(pixCoordA.x, pixCoordA.y);
-        self.displayCanvas.context.lineTo(pixCoordB.x, pixCoordB.y);
-        self.displayCanvas.context.stroke();
+        drawLine(pixCoordA.x,pixCoordA.y,pixCoordB.x,pixCoordB.y,self.displayCanvas);
       }
     }
 
     //draw result pt
     pixCoordA = ptToPix(newPts[0]);
-    self.displayCanvas.context.beginPath();
-    self.displayCanvas.context.arc(pixCoordA.x, pixCoordA.y, self.ptradius, 0, 2*Math.PI, false);
-    self.displayCanvas.context.fill();
-    self.displayCanvas.context.stroke();
+    drawPt(pixCoordA.x,pixCoordA.y,self.ptradius,self.displayCanvas);
 
     //draw pt on scratch canvas for persistance
-    self.scratchCanvas.context.fillRect(pixCoordA.x, pixCoordA.y, 1, 1);
-    self.displayCanvas.context.drawImage(self.scratchCanvas, 0, 0, self.width, self.height, 0, 0, self.width, self.height);
+    drawRect(pixCoordA.x,pixCoordA.y,1,1,self.scratchCanvas)
+    blitCanvas(self.scratchCanvas,self.displayCanvas);
   }
 
+  var ticker;
   this.tick = function()
   {
     draw();
     t+=0.005;
     if(t > 1) { t = 0; self.scratchCanvas.context.clearRect(0, 0, self.width, self.height); }
-    setTimeout(self.tick,1);
   };
 
-  this.play  = function(){ if(!ticker) { self.tick(); ticker = setInterval(self.tick,Math.round(60000/self.speed)); } };
+  this.play  = function(){ if(!ticker) { self.tick(); ticker = setInterval(self.tick,Math.round(1000/self.speed)); } };
   this.pause = function(){ if(ticker)  ticker = clearInterval(ticker); }
+
+  //canvas helpers
+  function drawLine(ox,oy,dx,dy,canvas)
+  {
+    canvas.context.beginPath();
+    canvas.context.moveTo(ox,oy);
+    canvas.context.lineTo(dx,dy);
+    canvas.context.stroke();
+  }
+  function drawPt(x,y,r,canvas)
+  {
+    canvas.context.beginPath();
+    canvas.context.arc(x, y, r, 0, 2*Math.PI, false);
+    canvas.context.fill();
+    canvas.context.stroke();
+  }
+  function drawRect(x,y,w,h,canvas)
+  {
+    canvas.context.fillRect(x, y, w, h);
+  }
+  function blitCanvas(orig,dest)
+  {
+    dest.context.drawImage(orig, 0, 0, self.width, self.height, 0, 0, self.width, self.height);
+  }
 
   this.displayCanvas = document.createElement('canvas');
   this.displayCanvas.context = this.displayCanvas.getContext('2d');
@@ -151,6 +161,6 @@ function Spline(params)
 
   this.parentContainer.appendChild(this.displayCanvas);
 
-  this.tick();//do one tick to get startingGrid on board
+  this.play();
 };
 
