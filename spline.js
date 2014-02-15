@@ -2,49 +2,8 @@ function Spline(params)
 {
   var self = this;
 
-  if(!params) params = {};
-
-  if(params.hasOwnProperty('debug')) this.debug = params.debug; else this.debug = false;
-  if(!(this.parentContainer = params.parentContainer))
-  {
-    this.parentContainer = document.createElement('div');
-    this.parentContainer.width  = 100;
-    this.parentContainer.height = 100;
-  }
-  if(params.hasOwnProperty('points'))     this.points     = params.points;     else this.points     = [{"x":-1,"y":1},{"x":-1,"y":-1},{"x":1,"y":-1}];
-  if(params.hasOwnProperty('fps'))        this.fps        = params.fps;        else this.fps        = 60;
-  if(params.hasOwnProperty('rate'))       this.rate       = params.rate;       else this.rate       = 0.001;
-  if(params.hasOwnProperty('width'))      this.width      = params.width;      else this.width      = 0;
-  if(params.hasOwnProperty('height'))     this.height     = params.height;     else this.height     = 0;
-  if(params.hasOwnProperty('xlen'))       this.xlen       = params.xlen;       else this.xlen       = 0;
-  if(params.hasOwnProperty('ylen'))       this.ylen       = params.ylen;       else this.ylen       = 0;
-  if(params.hasOwnProperty('origin'))     this.origin     = params.origin;     else this.origin     = "center";
-  if(params.hasOwnProperty('ptradius'))   this.ptradius   = params.ptradius;   else this.ptradius   = 3;
-  if(params.hasOwnProperty('linewidth'))  this.linewidth  = params.linewidth;  else this.linewidth  = 2;
-  if(params.hasOwnProperty('linecolors')) this.linecolors = params.linecolors; else this.linecolors = ["#000000","#44AA44","#4444AA","#AA4444"];
-  if(params.hasOwnProperty('ptcolors'))   this.ptcolors   = params.ptcolors;   else this.ptcolors   = ["#000000","#44AA44","#4444AA","#AA4444"];
-  if(params.hasOwnProperty('drawcolor'))  this.drawcolor  = params.drawcolor;  else this.drawcolor  = "#FF0000";
-  if(params.hasOwnProperty('bgcolor'))    this.bgcolor    = params.bgcolor;    else this.bgcolor    = "#FFFFFF";
-  if(params.hasOwnProperty('editable'))   this.editable   = params.editable;   else this.editable   = true;
-  if(params.hasOwnProperty('timectrls'))  this.timectrls  = params.timectrls;  else this.timectrls  = true;
-  if(params.hasOwnProperty('clearbtn'))   this.clearbtn   = params.clearbtn;   else this.clearbtn   = true;
-
-  //Special cases of inferring certain defaults
-  if(!this.xlen && !this.ylen)
-  {
-    if(!this.width)  this.width  = this.parentContainer.offsetWidth;  if(!this.width)  this.width  = this.parentContainer.width;
-    if(!this.height) this.height = this.parentContainer.offsetHeight; if(!this.height) this.height = this.parentContainer.height;
-    this.xlen = Math.floor(this.width/10);
-    this.ylen = Math.floor(this.height/10);
-  }
-  if(!this.width && !this.height)
-  {
-    this.width  = this.xlen*10;
-    this.height = this.ylen*10;
-  }
-
-  var t = 0;
-
+  //stateless helpers
+  //ptmath
   var ptToPix = function(pt)
   {
     return { "x":(self.width/2+(pt.x*(self.width/self.xlen)))+0.5, "y":(self.height/2-(pt.y*(self.height/self.ylen)))+0.5 }
@@ -58,116 +17,7 @@ function Spline(params)
     return { "x":pta.x+((ptb.x-pta.x)*t),"y":pta.y+((ptb.y-pta.y)*t) };
   }
 
-  var draw = function()
-  {
-    var pixCoordA;
-    var pixCoordB;
-
-    self.displayCanvas.context.fillStyle = self.bgcolor;
-    self.displayCanvas.context.strokeStyle = "#BBBBBB";
-    self.displayCanvas.context.lineWidth = 1;
-
-    //clear bg
-    drawRect(0,0,self.width,self.height,self.displayCanvas);
-
-    //draw grid
-    for(var x = 0; x < self.xlen; x++) //vertical lines
-    {
-      pixCoordA = ptToPix({"x":x-(self.xlen/2),"y":0});
-      drawLine(pixCoordA.x,0,pixCoordA.x,self.height,self.displayCanvas);
-    }
-    for(var y = 0; y < self.ylen; y++) //horizontal lines
-    {
-      pixCoordA = ptToPix({"x":0,"y":y-(self.ylen/2)});
-      drawLine(0,pixCoordA.y,self.width,pixCoordA.y,self.displayCanvas);
-    }
-
-    //set context
-    self.displayCanvas.context.fillStyle = self.ptcolors[0];
-    self.displayCanvas.context.strokeStyle = self.linecolors[0];
-    self.displayCanvas.context.lineWidth = self.linewidth;
-
-    var oldPts;
-    var newPts = self.points;;
-    var pass = 0;
-    while(newPts.length > 1)
-    {
-      //draw pts
-      oldPts = newPts;
-      for(var i = 0; i < oldPts.length; i++)
-      {
-        pixCoordA = ptToPix(oldPts[i]);
-        drawPt(pixCoordA.x,pixCoordA.y,self.ptradius,self.displayCanvas);
-      }
-
-      //draw lines, calculate next pts
-      newPts = [];
-      for(var i = 0; i < oldPts.length-1; i++)
-      {
-        newPts[i] = interpaPt(oldPts[i],oldPts[i+1],t);
-        pixCoordA = ptToPix(oldPts[i]);
-        pixCoordB = ptToPix(oldPts[i+1]);
-        drawLine(pixCoordA.x,pixCoordA.y,pixCoordB.x,pixCoordB.y,self.displayCanvas);
-      }
-
-      pass++;
-      self.displayCanvas.context.fillStyle   = self.ptcolors[pass%self.ptcolors.length];
-      self.displayCanvas.context.strokeStyle = self.linecolors[pass%self.linecolors.length];
-    }
-
-    //draw result pt
-    pixCoordA = ptToPix(newPts[0]);
-    drawPt(pixCoordA.x,pixCoordA.y,self.ptradius,self.displayCanvas);
-
-    //draw pt on scratch canvas for persistance
-    self.scratchCanvas.context.fillStyle = self.drawcolor;
-    drawRect(pixCoordA.x,pixCoordA.y,1,1,self.scratchCanvas)
-    blitCanvas(self.scratchCanvas,self.displayCanvas);
-
-    //draw ctrls
-    if(self.timectrls)
-    {
-      self.displayCanvas.context.save();
-      self.displayCanvas.context.strokeStyle = "#666666";
-      self.displayCanvas.context.lineWidth = 5;
-      var otow = self.width/20; //one twentieth of width
-      var ofow = self.width/50; //one fiftieth of width
-      //back
-      drawLine(ofow,self.height-ofow-ofow,ofow+otow,self.height-ofow-ofow-ofow,self.displayCanvas);
-      drawLine(ofow,self.height-ofow-ofow,ofow+otow,self.height-ofow,self.displayCanvas);
-      //pause
-      drawLine(otow+ofow+ofow+ofow,self.height-ofow-otow,otow+ofow+ofow+ofow,self.height-ofow,self.displayCanvas);
-      drawLine(otow+ofow+ofow+otow,self.height-ofow-otow,otow+ofow+ofow+otow,self.height-ofow,self.displayCanvas);
-      //play
-      drawLine(otow+otow+otow+ofow+otow,self.height-ofow-ofow,otow+otow+otow+ofow,self.height-ofow-ofow-ofow,self.displayCanvas);
-      drawLine(otow+otow+otow+ofow+otow,self.height-ofow-ofow,otow+otow+otow+ofow,self.height-ofow,self.displayCanvas);
-      self.displayCanvas.context.restore();
-    }
-    if(self.clearbtn)
-    {
-      self.displayCanvas.context.save();
-      self.displayCanvas.context.strokeStyle = "#666666";
-      self.displayCanvas.context.lineWidth = 5;
-      var otow = self.width/20; //one twentieth of width
-      var ofow = self.width/50; //one fiftieth of width
-      drawLine(self.width-ofow-otow,self.height-ofow-otow,self.width-ofow,     self.height-ofow,self.displayCanvas);
-      drawLine(self.width-ofow     ,self.height-ofow-otow,self.width-ofow-otow,self.height-ofow,self.displayCanvas);
-      self.displayCanvas.context.restore();
-    }
-  }
-
-  var ticker;
-  this.tick = function()
-  {
-    draw();
-    t+=self.rate;
-    if(t > 1) t = 0;
-  };
-
-  this.play  = function(){ if(!ticker) { self.tick(); ticker = setInterval(self.tick,Math.round(1000/self.fps)); } };
-  this.pause = function(){ if(ticker)  ticker = clearInterval(ticker); }
-
-  //canvas helpers
+  //canvas manipulation
   function drawLine(ox,oy,dx,dy,canvas)
   {
     canvas.context.beginPath();
@@ -190,42 +40,212 @@ function Spline(params)
   {
     dest.context.drawImage(orig, 0, 0, self.width, self.height, 0, 0, self.width, self.height);
   }
+  function clearCanvas(canvas)
+  {
+    canvas.context.clearRect(0, 0, self.width, self.height);
+  }
 
-  this.displayCanvas = document.createElement('canvas');
-  this.displayCanvas.context = this.displayCanvas.getContext('2d');
-  this.displayCanvas.width  = this.width;
-  this.displayCanvas.height = this.height;
-  this.displayCanvas.context.imageSmoothingEnabled = false;
-  this.displayCanvas.context.webkitImageSmoothingEnabled = false;
+  //Handle param config
+  if(!params) params = {};
 
-  this.scratchCanvas = document.createElement('canvas');
-  this.scratchCanvas.context = this.scratchCanvas.getContext('2d');
-  this.scratchCanvas.width  = this.width;
-  this.scratchCanvas.height = this.height;
-  this.scratchCanvas.context.imageSmoothingEnabled = false;
-  this.scratchCanvas.context.webkitImageSmoothingEnabled = false;
+  if(params.hasOwnProperty('debug')) self.debug = params.debug; else self.debug = false;
+  if(!(self.parentContainer = params.parentContainer))
+  {
+    self.parentContainer = document.createElement('div');
+    self.parentContainer.width  = 100;
+    self.parentContainer.height = 100;
+  }
+  if(params.hasOwnProperty('points'))     self.points     = params.points;     else self.points     = [{"x":-1,"y":1},{"x":-1,"y":-1},{"x":1,"y":-1}];
+  if(params.hasOwnProperty('fps'))        self.fps        = params.fps;        else self.fps        = 60;
+  if(params.hasOwnProperty('rate'))       self.rate       = params.rate;       else self.rate       = 0.001;
+  if(params.hasOwnProperty('width'))      self.width      = params.width;      else self.width      = 0;
+  if(params.hasOwnProperty('height'))     self.height     = params.height;     else self.height     = 0;
+  if(params.hasOwnProperty('xlen'))       self.xlen       = params.xlen;       else self.xlen       = 0;
+  if(params.hasOwnProperty('ylen'))       self.ylen       = params.ylen;       else self.ylen       = 0;
+  if(params.hasOwnProperty('origin'))     self.origin     = params.origin;     else self.origin     = "center";
+  if(params.hasOwnProperty('ptradius'))   self.ptradius   = params.ptradius;   else self.ptradius   = 3;
+  if(params.hasOwnProperty('linewidth'))  self.linewidth  = params.linewidth;  else self.linewidth  = 2;
+  if(params.hasOwnProperty('linecolors')) self.linecolors = params.linecolors; else self.linecolors = ["#000000","#44AA44","#4444AA","#AA4444"];
+  if(params.hasOwnProperty('ptcolors'))   self.ptcolors   = params.ptcolors;   else self.ptcolors   = ["#000000","#44AA44","#4444AA","#AA4444"];
+  if(params.hasOwnProperty('drawcolor'))  self.drawcolor  = params.drawcolor;  else self.drawcolor  = "#FF0000";
+  if(params.hasOwnProperty('bgcolor'))    self.bgcolor    = params.bgcolor;    else self.bgcolor    = "#FFFFFF";
+  if(params.hasOwnProperty('editable'))   self.editable   = params.editable;   else self.editable   = true;
+  if(params.hasOwnProperty('ctrls'))      self.ctrls      = params.ctrls;      else self.ctrls      = true;
+  if(params.hasOwnProperty('grid'))       self.grid       = params.grid;       else self.grid       = true;
 
-  this.parentContainer.appendChild(this.displayCanvas);
+  //Special cases of inferring certain defaults
+  if(!self.xlen && !self.ylen)
+  {
+    if(!self.width)  self.width  = self.parentContainer.offsetWidth;  if(!self.width)  self.width  = self.parentContainer.width;
+    if(!self.height) self.height = self.parentContainer.offsetHeight; if(!self.height) self.height = self.parentContainer.height;
+    self.xlen = Math.floor(self.width/10);
+    self.ylen = Math.floor(self.height/10);
+  }
+  if(!self.width && !self.height)
+  {
+    self.width  = self.xlen*10;
+    self.height = self.ylen*10;
+  }
+
+  //Init canvases
+  //added to the dom
+  var displayCanvas = document.createElement('canvas');
+  displayCanvas.context = displayCanvas.getContext('2d');
+  displayCanvas.width  = self.width;
+  displayCanvas.height = self.height;
+  displayCanvas.context.imageSmoothingEnabled = false;
+  displayCanvas.context.webkitImageSmoothingEnabled = false;
+
+  //draws the points/lines
+  var gridCanvas = document.createElement('canvas');
+  gridCanvas.context = gridCanvas.getContext('2d');
+  gridCanvas.width  = self.width;
+  gridCanvas.height = self.height;
+  gridCanvas.context.imageSmoothingEnabled = false;
+  gridCanvas.context.webkitImageSmoothingEnabled = false;
+  gridCanvas.context.lineWidth = self.linewidth;
+
+  //draws the points/lines
+  var skeletonCanvas = document.createElement('canvas');
+  skeletonCanvas.context = skeletonCanvas.getContext('2d');
+  skeletonCanvas.width  = self.width;
+  skeletonCanvas.height = self.height;
+  skeletonCanvas.context.imageSmoothingEnabled = false;
+  skeletonCanvas.context.webkitImageSmoothingEnabled = false;
+  skeletonCanvas.context.lineWidth = self.linewidth;
+
+  //draws the spline curve
+  var plotCanvas = document.createElement('canvas');
+  plotCanvas.context = plotCanvas.getContext('2d');
+  plotCanvas.width  = self.width;
+  plotCanvas.height = self.height;
+  plotCanvas.context.imageSmoothingEnabled = false;
+  plotCanvas.context.webkitImageSmoothingEnabled = false;
+  plotCanvas.context.fillStyle = self.drawcolor;
+
+  //draws the grid/controls
+  var hudCanvas = document.createElement('canvas');
+  hudCanvas.context = hudCanvas.getContext('2d');
+  hudCanvas.width  = self.width;
+  hudCanvas.height = self.height;
+  hudCanvas.context.imageSmoothingEnabled = false;
+  
+  self.parentContainer.appendChild(displayCanvas);
+
+  //draw static hud once
+  if(self.grid)
+  {
+    gridCanvas.context.strokeStyle = "#BBBBBB";
+    gridCanvas.context.lineWidth = 1;
+    var pixCoord;
+    for(var x = 0; x < self.xlen; x++) //vertical lines
+    {
+      pixCoord = ptToPix({"x":x-(self.xlen/2),"y":0});
+      drawLine(pixCoord.x,0,pixCoord.x,self.height,gridCanvas);
+    }
+    for(var y = 0; y < self.ylen; y++) //horizontal lines
+    {
+      pixCoord = ptToPix({"x":0,"y":y-(self.ylen/2)});
+      drawLine(0,pixCoord.y,self.width,pixCoord.y,gridCanvas);
+    }
+  }
+  if(self.ctrls)
+  {
+    hudCanvas.context.strokeStyle = "#666666";
+    hudCanvas.context.lineWidth = 5;
+    var otow = self.width/20; //one twentieth of width
+    var ofow = self.width/50; //one fiftieth of width
+    //back
+    drawLine(ofow,self.height-ofow-ofow,ofow+otow,self.height-ofow-ofow-ofow,hudCanvas);
+    drawLine(ofow,self.height-ofow-ofow,ofow+otow,self.height-ofow,hudCanvas);
+    //pause
+    drawLine(otow+ofow+ofow+ofow,self.height-ofow-otow,otow+ofow+ofow+ofow,self.height-ofow,hudCanvas);
+    drawLine(otow+ofow+ofow+otow,self.height-ofow-otow,otow+ofow+ofow+otow,self.height-ofow,hudCanvas);
+    //play
+    drawLine(otow+otow+otow+ofow+otow,self.height-ofow-ofow,otow+otow+otow+ofow,self.height-ofow-ofow-ofow,hudCanvas);
+    drawLine(otow+otow+otow+ofow+otow,self.height-ofow-ofow,otow+otow+otow+ofow,self.height-ofow,hudCanvas);
+    //clear btn
+    drawLine(self.width-ofow-otow,self.height-ofow-otow,self.width-ofow,     self.height-ofow,hudCanvas);
+    drawLine(self.width-ofow     ,self.height-ofow-otow,self.width-ofow-otow,self.height-ofow,hudCanvas);
+  }
+
+  var t = 0;
+  var pixPoints = [];
+  for(var i = 0; i < self.points.length; i++)
+    pixPoints.push(ptToPix(self.points[i]));
+
+  var draw = function()
+  {
+    clearCanvas(skeletonCanvas);
+    var oldPts;
+    var newPts = pixPoints;
+    var pass = 0;
+    skeletonCanvas.context.fillStyle = self.ptcolors[0];
+    skeletonCanvas.context.strokeStyle = self.linecolors[0];
+    while(newPts.length > 1)
+    {
+      oldPts = newPts;
+
+      //draw pts
+      for(var i = 0; i < oldPts.length; i++)
+        drawPt(oldPts[i].x,oldPts[i].y,self.ptradius,skeletonCanvas);
+
+      //draw lines, calculate next pts
+      newPts = [];
+      for(var i = 0; i < oldPts.length-1; i++)
+      {
+        drawLine(oldPts[i].x,oldPts[i].y,oldPts[i+1].x,oldPts[i+1].y,skeletonCanvas);
+        newPts[i] = interpaPt(oldPts[i],oldPts[i+1],t);
+      }
+
+      pass++;
+      skeletonCanvas.context.fillStyle   = self.ptcolors[pass%self.ptcolors.length];
+      skeletonCanvas.context.strokeStyle = self.linecolors[pass%self.linecolors.length];
+    }
+    //draw result pt
+    drawPt(newPts[0].x,newPts[0].y,self.ptradius,skeletonCanvas);
+
+    //draw pt on scratch canvas
+    drawRect(newPts[0].x,newPts[0].y,1,1,plotCanvas)
+
+    //actually draw to display
+    displayCanvas.context.fillStyle = self.bgcolor;
+    drawRect(0,0,self.width,self.height,displayCanvas);
+    if(self.grid) blitCanvas(gridCanvas,displayCanvas);
+    blitCanvas(skeletonCanvas,displayCanvas);
+    blitCanvas(plotCanvas,displayCanvas);
+    if(self.ctrls) blitCanvas(hudCanvas,displayCanvas);
+  }
+
+  var ticker;
+  var tick = function()
+  {
+    draw();
+    t+=self.rate;
+    if(t > 1) t = 0;
+  };
+
+  self.play  = function(){ if(!ticker) { tick(); ticker = setInterval(tick,Math.round(1000/self.fps)); } };
+  self.pause = function(){ if(ticker)  ticker = clearInterval(ticker); }
 
   //editing
   var ptDragging;
   function startDrag(evt)
   {
-    var pt = pixToPt({"x":evt.offsetX,"y":evt.offsetY});
-    for(var i = 0; i < self.points.length; i++)
-      if(Math.sqrt(Math.pow(self.points[i].x-pt.x,2)+Math.pow(self.points[i].y-pt.y,2)) < (self.ptradius*self.xlen/self.width)*2)
-        ptDragging = self.points[i];
-
-    if(!ptDragging && self.clearbtn)
+    for(var i = 0; i < pixPoints.length; i++)
     {
+      if(Math.sqrt(Math.pow(pixPoints[i].x-evt.offsetX,2)+Math.pow(pixPoints[i].y-evt.offsetY,2)) < self.ptradius+5)
+        ptDragging = pixPoints[i];
+    }
+
+    if(!ptDragging && self.ctrls)
+    {
+      //clear
       if(evt.offsetX > self.width-(self.width/10) && evt.offsetY > self.height-(self.width/10))
       {
-        self.scratchCanvas.context.clearRect(0, 0, self.width, self.height);
+        plotCanvas.context.clearRect(0, 0, self.width, self.height);
         draw();
       }
-    }
-    if(!ptDragging && self.timectrls)
-    {
       //back
       if(evt.offsetX < (self.width/10) && evt.offsetY > self.height-(self.width/10))
       {
@@ -247,20 +267,18 @@ function Spline(params)
   function drag(evt)
   {
     if(!ptDragging) return;
-    var pt = pixToPt({"x":evt.offsetX,"y":evt.offsetY});
-    ptDragging.x = pt.x;
-    ptDragging.y = pt.y;
+    ptDragging.x = evt.offsetX;
+    ptDragging.y = evt.offsetY;
 
     if(!ticker) draw();
   }
-  if(this.editable)
+  if(self.editable)
   {
-    self.displayCanvas.addEventListener('mousedown', startDrag, false);
-    self.displayCanvas.addEventListener('mouseup',   stopDrag,  false);
-    self.displayCanvas.addEventListener('mousemove', drag,      false);
+    displayCanvas.addEventListener('mousedown', startDrag, false);
+    displayCanvas.addEventListener('mouseup',   stopDrag,  false);
+    displayCanvas.addEventListener('mousemove', drag,      false);
   }
 
-
-  this.play();
+  self.play();
 };
 
