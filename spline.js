@@ -130,7 +130,7 @@ function Spline(params)
       self.displayCanvas.context.save();
       self.displayCanvas.context.strokeStyle = "#666666";
       self.displayCanvas.context.lineWidth = 5;
-      var otow = self.width/20;  //one twentieth of width
+      var otow = self.width/20; //one twentieth of width
       var ofow = self.width/50; //one fiftieth of width
       //back
       drawLine(ofow,self.height-ofow-ofow,ofow+otow,self.height-ofow-ofow-ofow,self.displayCanvas);
@@ -148,7 +148,7 @@ function Spline(params)
       self.displayCanvas.context.save();
       self.displayCanvas.context.strokeStyle = "#666666";
       self.displayCanvas.context.lineWidth = 5;
-      var otow = self.width/20;  //one twentieth of width
+      var otow = self.width/20; //one twentieth of width
       var ofow = self.width/50; //one fiftieth of width
       drawLine(self.width-ofow-otow,self.height-ofow-otow,self.width-ofow,     self.height-ofow,self.displayCanvas);
       drawLine(self.width-ofow     ,self.height-ofow-otow,self.width-ofow-otow,self.height-ofow,self.displayCanvas);
@@ -161,7 +161,7 @@ function Spline(params)
   {
     draw();
     t+=self.rate;
-    if(t > 1) { t = 0; self.scratchCanvas.context.clearRect(0, 0, self.width, self.height); }
+    if(t > 1) t = 0;
   };
 
   this.play  = function(){ if(!ticker) { self.tick(); ticker = setInterval(self.tick,Math.round(1000/self.fps)); } };
@@ -219,7 +219,10 @@ function Spline(params)
     if(!ptDragging && self.clearbtn)
     {
       if(evt.offsetX > self.width-(self.width/10) && evt.offsetY > self.height-(self.width/10))
+      {
         self.scratchCanvas.context.clearRect(0, 0, self.width, self.height);
+        draw();
+      }
     }
     if(!ptDragging && self.timectrls)
     {
@@ -227,7 +230,7 @@ function Spline(params)
       if(evt.offsetX < (self.width/10) && evt.offsetY > self.height-(self.width/10))
       {
         t = 0;
-        self.scratchCanvas.context.clearRect(0, 0, self.width, self.height);
+        draw();
       }
       //pause
       else if(evt.offsetX < (self.width/6) && evt.offsetY > self.height-(self.width/10))
