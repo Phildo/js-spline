@@ -47,7 +47,7 @@ SplineDisplay = function(params)
   }
   if(params.hasOwnProperty('spline'))     self.spline     = params.spline;     else self.spline     = new Spline([[-1,1],[-1,-1],[1,-1]]);
   if(params.hasOwnProperty('fps'))        self.fps        = params.fps;        else self.fps        = 60;
-  if(params.hasOwnProperty('rate'))       self.rate       = params.rate;       else self.rate       = 0.001;
+  if(params.hasOwnProperty('rate'))       self.rate       = params.rate;       else self.rate       = 0.01;
   if(params.hasOwnProperty('width'))      self.width      = params.width;      else self.width      = 0;
   if(params.hasOwnProperty('height'))     self.height     = params.height;     else self.height     = 0;
   if(params.hasOwnProperty('xlen'))       self.xlen       = params.xlen;       else self.xlen       = 0;
@@ -117,7 +117,8 @@ SplineDisplay = function(params)
   plotCanvas.height = self.height;
   plotCanvas.context.imageSmoothingEnabled = false;
   plotCanvas.context.webkitImageSmoothingEnabled = false;
-  plotCanvas.context.fillStyle = self.drawcolor;
+  plotCanvas.context.lineWidth = 1;
+  plotCanvas.context.strokeStyle = self.drawcolor;
 
   //draws the grid/controls
   var hudCanvas = document.createElement('canvas');
@@ -160,14 +161,21 @@ SplineDisplay = function(params)
   }
 
   var t = 0;
-  var lastCalculatedPt;
+  var lastCalculatedPt = [];
   var update = function()
   {
     t+=self.rate;
-    if(t > 1) t = 0;
-    lastCalculatedPt = self.spline.ptForT(t);
+    if(t > 1) 
+    {
+      lastDrawnPt = []; //prevent connection line
+      t = 0;
+    }
+    self.spline.ptForT(t);
+    //need to copy by value
+    lastCalculatedPt[0] = self.spline.calculatedPt[0];
+    lastCalculatedPt[1] = self.spline.calculatedPt[1];
   }
-  var lastDrawnPt;
+  var lastDrawnPt = [];
   var draw = function()
   {
     clearCanvas(skeletonCanvas);
@@ -186,9 +194,17 @@ SplineDisplay = function(params)
     }
 
     //draw pt on scratch canvas
-    if(!lastDrawnPt) lastDrawnPt = lastCalculatedPt;
-    drawLine(lastDrawnPt[0],lastDrawnPt[1],lastCalculatedPt[0],lastCalculatedPt[1],skeletonCanvas);
-    lastDrawnPt = lastCalculatedPt;
+    if(!lastDrawnPt)
+    {
+      //need to copy by value
+      lastDrawnPt[0] = lastCalculatedPt[0];
+      lastDrawnPt[1] = lastCalculatedPt[1];
+    }
+    //Only draw line if distance isn't huge
+    drawLine(lastDrawnPt[0],lastDrawnPt[1],lastCalculatedPt[0],lastCalculatedPt[1],plotCanvas);
+    //need to copy by value
+    lastDrawnPt[0] = lastCalculatedPt[0];
+    lastDrawnPt[1] = lastCalculatedPt[1];
 
     //actually draw to display
     displayCanvas.context.fillStyle = self.bgcolor;
@@ -230,7 +246,8 @@ SplineDisplay = function(params)
       //back
       if(evt.offsetX < (self.width/10) && evt.offsetY > self.height-(self.width/10))
       {
-        t = 0;
+        t = 0; 
+        lastDrawnPt = []; //prevent connection line
         draw();
       }
       //pause
