@@ -164,13 +164,20 @@ SplineDisplay = function(params)
   var lastCalculatedPt = [];
   var update = function()
   {
-    t+=self.rate;
-    if(t == 1+self.rate) { lastDrawnPt = []; /*prevent connection line*/ t = 0; }
-    if(t > 1) t = 1;
     self.spline.ptForT(t);
     //need to copy by value
     lastCalculatedPt[0] = self.spline.calculatedPt[0];
     lastCalculatedPt[1] = self.spline.calculatedPt[1];
+
+    t+=self.rate;
+    if(t == 1+self.rate)
+    { 
+      t = 0;
+      // prevent connection line
+      lastDrawnPt = [];
+      lastCalculatedPt = [];
+    }
+    if(t > 1) t = 1;
   }
   var lastDrawnPt = [];
   var draw = function()
@@ -191,7 +198,7 @@ SplineDisplay = function(params)
     }
 
     //draw pt on scratch canvas
-    if(!lastDrawnPt)
+    if(lastDrawnPt.length == 0)
     {
       //need to copy by value
       lastDrawnPt[0] = lastCalculatedPt[0];
@@ -244,8 +251,9 @@ SplineDisplay = function(params)
       if(evt.offsetX < (self.width/10) && evt.offsetY > self.height-(self.width/10))
       {
         t = 0; 
-        lastDrawnPt = []; //prevent connection line
-        draw();
+        //prevent connection line
+        lastDrawnPt = []; 
+        lastCalculatedPt = [];
       }
       //pause
       else if(evt.offsetX < (self.width/6) && evt.offsetY > self.height-(self.width/10))
