@@ -165,11 +165,8 @@ SplineDisplay = function(params)
   var update = function()
   {
     t+=self.rate;
-    if(t > 1) 
-    {
-      lastDrawnPt = []; //prevent connection line
-      t = 0;
-    }
+    if(t == 1+self.rate) { lastDrawnPt = []; /*prevent connection line*/ t = 0; }
+    if(t > 1) t = 1;
     self.spline.ptForT(t);
     //need to copy by value
     lastCalculatedPt[0] = self.spline.calculatedPt[0];
@@ -268,7 +265,7 @@ SplineDisplay = function(params)
     ptDragging[0] = evt.offsetX;
     ptDragging[1] = evt.offsetY;
 
-    if(!ticker) { update(); draw(); }
+    if(!ticker) { draw(); }
   }
   if(self.editable)
   {

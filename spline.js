@@ -40,7 +40,7 @@ var Spline = function(pts) //Array of pts. Each nD pt takes the form of an n-len
 
   //derived pts- allocate once and persist to limit memory allocations on subsequent queries
   self.t; //last calculated t
-  self.derivedPts; //3D array- array of all derived pts sets, set of pts, 'pt' AKA n-length array
+  self.derivedPts; //3D array- array of: all derived pts sets, set of pts, 'pt' AKA n-length array
   self.calculatedPt; //last calculated pt (identical to self.derivedPts[self.derivedPts.length-1][0]
   self.setPts = function(pts)
   {
@@ -54,14 +54,14 @@ var Spline = function(pts) //Array of pts. Each nD pt takes the form of an n-len
     }
 
     //set interp algo based on dimension/length
-    interpAPt = interpAPt2D; //Currently only supports 2D- will have a switch statement
+    interpAPt = interpAPt2D; //Currently only supports 2D- will have a switch statement for ND
   }
   self.ptForT = function(t)
   {
     if(t == self.t) return self.calculatedPt; //no need to recalculate
     self.t = t;
 
-    var pass = 1; //'pass 0' is the population of the static base pts
+    var pass = 1; //'pass 0' is the population of the unchanging base pts
     while(pass < self.pts.length)
     {
       for(var i = 0; i < self.derivedPts[pass-1].length-1; i++)
