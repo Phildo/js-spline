@@ -1,284 +1,76 @@
-function Spline(params)
+var Spline = function(pts) //Array of pts. Each nD pt takes the form of an n-length array. ex:[0,0] <- lol causes error in vim modeline
 {
   var self = this;
 
-  //stateless helpers
-  //ptmath
-  var ptToPix = function(pt)
+  var interpAPt = function(pt1, pt2, t, ptr) {};
+  var interpAPt2D = function(pt1, pt2, t, ptr)
   {
-    return { "x":(self.width/2+(pt.x*(self.width/self.xlen)))+0.5, "y":(self.height/2-(pt.y*(self.height/self.ylen)))+0.5 }
+    ptr[0] = pt1[0]+((pt2[0]-pt1[0])*t);
+    ptr[1] = pt1[1]+((pt2[1]-pt1[1])*t);
+
+    return ptr;
   }
-  var pixToPt = function(pix)
+  var interpAPt3D = function(pt1, pt2, t, ptr)
   {
-    return { "x":(pix.x-self.width/2)/(self.width/self.xlen), "y":-(pix.y-self.height/2)/(self.height/self.ylen) }
+    ptr[0] = pt1[0]+((pt2[0]-pt1[0])*t);
+    ptr[1] = pt1[1]+((pt2[1]-pt1[1])*t);
+    ptr[2] = pt1[2]+((pt2[2]-pt1[2])*t);
+
+    return ptr;
   }
-  var interpaPt = function(pta, ptb, t)
+  var interpAPt4D = function(pt1, pt2, t, ptr)
   {
-    return { "x":pta.x+((ptb.x-pta.x)*t),"y":pta.y+((ptb.y-pta.y)*t) };
+    ptr[0] = pt1[0]+((pt2[0]-pt1[0])*t);
+    ptr[1] = pt1[1]+((pt2[1]-pt1[1])*t);
+    ptr[2] = pt1[2]+((pt2[2]-pt1[2])*t);
+    ptr[3] = pt1[3]+((pt2[3]-pt1[3])*t);
+
+    return ptr;
+  }
+  var interpAPt5D = function(pt1, pt2, t, ptr)
+  {
+    ptr[0] = pt1[0]+((pt2[0]-pt1[0])*t);
+    ptr[1] = pt1[1]+((pt2[1]-pt1[1])*t);
+    ptr[2] = pt1[2]+((pt2[2]-pt1[2])*t);
+    ptr[3] = pt1[3]+((pt2[3]-pt1[3])*t);
+    ptr[4] = pt1[4]+((pt2[4]-pt1[4])*t);
+
+    return ptr;
   }
 
-  //canvas manipulation
-  function drawLine(ox,oy,dx,dy,canvas)
+  //derived pts- allocate once and persist to limit memory allocations on subsequent queries
+  self.t; //last calculated t
+  self.derivedPts; //3D array- array of all derived pts sets, set of pts, 'pt' AKA n-length array
+  self.calculatedPt; //last calculated pt (identical to self.derivedPts[self.derivedPts.length-1][0]
+  self.setPts = function(pts)
   {
-    canvas.context.beginPath();
-    canvas.context.moveTo(ox,oy);
-    canvas.context.lineTo(dx,dy);
-    canvas.context.stroke();
-  }
-  function drawPt(x,y,r,canvas)
-  {
-    canvas.context.beginPath();
-    canvas.context.arc(x, y, r, 0, 2*Math.PI, false);
-    canvas.context.fill();
-    canvas.context.stroke();
-  }
-  function drawRect(x,y,w,h,canvas)
-  {
-    canvas.context.fillRect(x, y, w, h);
-  }
-  function blitCanvas(orig,dest)
-  {
-    dest.context.drawImage(orig, 0, 0, self.width, self.height, 0, 0, self.width, self.height);
-  }
-  function clearCanvas(canvas)
-  {
-    canvas.context.clearRect(0, 0, self.width, self.height);
-  }
-
-  //Handle param config
-  if(!params) params = {};
-
-  if(params.hasOwnProperty('debug')) self.debug = params.debug; else self.debug = false;
-  if(!(self.parentContainer = params.parentContainer))
-  {
-    self.parentContainer = document.createElement('div');
-    self.parentContainer.width  = 100;
-    self.parentContainer.height = 100;
-  }
-  if(params.hasOwnProperty('points'))     self.points     = params.points;     else self.points     = [{"x":-1,"y":1},{"x":-1,"y":-1},{"x":1,"y":-1}];
-  if(params.hasOwnProperty('fps'))        self.fps        = params.fps;        else self.fps        = 60;
-  if(params.hasOwnProperty('rate'))       self.rate       = params.rate;       else self.rate       = 0.001;
-  if(params.hasOwnProperty('width'))      self.width      = params.width;      else self.width      = 0;
-  if(params.hasOwnProperty('height'))     self.height     = params.height;     else self.height     = 0;
-  if(params.hasOwnProperty('xlen'))       self.xlen       = params.xlen;       else self.xlen       = 0;
-  if(params.hasOwnProperty('ylen'))       self.ylen       = params.ylen;       else self.ylen       = 0;
-  if(params.hasOwnProperty('origin'))     self.origin     = params.origin;     else self.origin     = "center";
-  if(params.hasOwnProperty('ptradius'))   self.ptradius   = params.ptradius;   else self.ptradius   = 3;
-  if(params.hasOwnProperty('linewidth'))  self.linewidth  = params.linewidth;  else self.linewidth  = 2;
-  if(params.hasOwnProperty('linecolors')) self.linecolors = params.linecolors; else self.linecolors = ["#000000","#44AA44","#4444AA","#AA4444"];
-  if(params.hasOwnProperty('ptcolors'))   self.ptcolors   = params.ptcolors;   else self.ptcolors   = ["#000000","#44AA44","#4444AA","#AA4444"];
-  if(params.hasOwnProperty('drawcolor'))  self.drawcolor  = params.drawcolor;  else self.drawcolor  = "#FF0000";
-  if(params.hasOwnProperty('bgcolor'))    self.bgcolor    = params.bgcolor;    else self.bgcolor    = "#FFFFFF";
-  if(params.hasOwnProperty('editable'))   self.editable   = params.editable;   else self.editable   = true;
-  if(params.hasOwnProperty('ctrls'))      self.ctrls      = params.ctrls;      else self.ctrls      = true;
-  if(params.hasOwnProperty('grid'))       self.grid       = params.grid;       else self.grid       = true;
-
-  //Special cases of inferring certain defaults
-  if(!self.xlen && !self.ylen)
-  {
-    if(!self.width)  self.width  = self.parentContainer.offsetWidth;  if(!self.width)  self.width  = self.parentContainer.width;
-    if(!self.height) self.height = self.parentContainer.offsetHeight; if(!self.height) self.height = self.parentContainer.height;
-    self.xlen = Math.floor(self.width/10);
-    self.ylen = Math.floor(self.height/10);
-  }
-  if(!self.width && !self.height)
-  {
-    self.width  = self.xlen*10;
-    self.height = self.ylen*10;
-  }
-
-  //Init canvases
-  //added to the dom
-  var displayCanvas = document.createElement('canvas');
-  displayCanvas.context = displayCanvas.getContext('2d');
-  displayCanvas.width  = self.width;
-  displayCanvas.height = self.height;
-  displayCanvas.context.imageSmoothingEnabled = false;
-  displayCanvas.context.webkitImageSmoothingEnabled = false;
-
-  //draws the points/lines
-  var gridCanvas = document.createElement('canvas');
-  gridCanvas.context = gridCanvas.getContext('2d');
-  gridCanvas.width  = self.width;
-  gridCanvas.height = self.height;
-  gridCanvas.context.imageSmoothingEnabled = false;
-  gridCanvas.context.webkitImageSmoothingEnabled = false;
-  gridCanvas.context.lineWidth = self.linewidth;
-
-  //draws the points/lines
-  var skeletonCanvas = document.createElement('canvas');
-  skeletonCanvas.context = skeletonCanvas.getContext('2d');
-  skeletonCanvas.width  = self.width;
-  skeletonCanvas.height = self.height;
-  skeletonCanvas.context.imageSmoothingEnabled = false;
-  skeletonCanvas.context.webkitImageSmoothingEnabled = false;
-  skeletonCanvas.context.lineWidth = self.linewidth;
-
-  //draws the spline curve
-  var plotCanvas = document.createElement('canvas');
-  plotCanvas.context = plotCanvas.getContext('2d');
-  plotCanvas.width  = self.width;
-  plotCanvas.height = self.height;
-  plotCanvas.context.imageSmoothingEnabled = false;
-  plotCanvas.context.webkitImageSmoothingEnabled = false;
-  plotCanvas.context.fillStyle = self.drawcolor;
-
-  //draws the grid/controls
-  var hudCanvas = document.createElement('canvas');
-  hudCanvas.context = hudCanvas.getContext('2d');
-  hudCanvas.width  = self.width;
-  hudCanvas.height = self.height;
-  hudCanvas.context.imageSmoothingEnabled = false;
-  
-  self.parentContainer.appendChild(displayCanvas);
-
-  //draw static hud once
-  if(self.grid)
-  {
-    gridCanvas.context.strokeStyle = "#BBBBBB";
-    gridCanvas.context.lineWidth = 1;
-    var pixCoord;
-    for(var x = 0; x < self.xlen; x++) //vertical lines
+    self.pts = pts;
+    self.derivedPts = [self.pts]; 
+    for(var i = 1; i < self.pts.length; i++)
     {
-      pixCoord = ptToPix({"x":x-(self.xlen/2),"y":0});
-      drawLine(pixCoord.x,0,pixCoord.x,self.height,gridCanvas);
+      self.derivedPts[i] = []; //allocate
+      for(var j = 0; j <  self.pts.length-i; j++)
+        self.derivedPts[i][j] = [];
     }
-    for(var y = 0; y < self.ylen; y++) //horizontal lines
-    {
-      pixCoord = ptToPix({"x":0,"y":y-(self.ylen/2)});
-      drawLine(0,pixCoord.y,self.width,pixCoord.y,gridCanvas);
-    }
+
+    //set interp algo based on dimension/length
+    interpAPt = interpAPt2D; //Currently only supports 2D- will have a switch statement
   }
-  if(self.ctrls)
+  self.ptForT = function(t)
   {
-    hudCanvas.context.strokeStyle = "#666666";
-    hudCanvas.context.lineWidth = 5;
-    var otow = self.width/20; //one twentieth of width
-    var ofow = self.width/50; //one fiftieth of width
-    //back
-    drawLine(ofow,self.height-ofow-ofow,ofow+otow,self.height-ofow-ofow-ofow,hudCanvas);
-    drawLine(ofow,self.height-ofow-ofow,ofow+otow,self.height-ofow,hudCanvas);
-    //pause
-    drawLine(otow+ofow+ofow+ofow,self.height-ofow-otow,otow+ofow+ofow+ofow,self.height-ofow,hudCanvas);
-    drawLine(otow+ofow+ofow+otow,self.height-ofow-otow,otow+ofow+ofow+otow,self.height-ofow,hudCanvas);
-    //play
-    drawLine(otow+otow+otow+ofow+otow,self.height-ofow-ofow,otow+otow+otow+ofow,self.height-ofow-ofow-ofow,hudCanvas);
-    drawLine(otow+otow+otow+ofow+otow,self.height-ofow-ofow,otow+otow+otow+ofow,self.height-ofow,hudCanvas);
-    //clear btn
-    drawLine(self.width-ofow-otow,self.height-ofow-otow,self.width-ofow,     self.height-ofow,hudCanvas);
-    drawLine(self.width-ofow     ,self.height-ofow-otow,self.width-ofow-otow,self.height-ofow,hudCanvas);
-  }
+    if(t == self.t) return self.calculatedPt; //no need to recalculate
+    self.t = t;
 
-  var t = 0;
-  var pixPoints = [];
-  for(var i = 0; i < self.points.length; i++)
-    pixPoints.push(ptToPix(self.points[i]));
-
-  var draw = function()
-  {
-    clearCanvas(skeletonCanvas);
-    var oldPts;
-    var newPts = pixPoints;
-    var pass = 0;
-    skeletonCanvas.context.fillStyle = self.ptcolors[0];
-    skeletonCanvas.context.strokeStyle = self.linecolors[0];
-    while(newPts.length > 1)
+    var pass = 1; //'pass 0' is the population of the static base pts
+    while(pass < self.pts.length)
     {
-      oldPts = newPts;
-
-      //draw pts
-      for(var i = 0; i < oldPts.length; i++)
-        drawPt(oldPts[i].x,oldPts[i].y,self.ptradius,skeletonCanvas);
-
-      //draw lines, calculate next pts
-      newPts = [];
-      for(var i = 0; i < oldPts.length-1; i++)
-      {
-        drawLine(oldPts[i].x,oldPts[i].y,oldPts[i+1].x,oldPts[i+1].y,skeletonCanvas);
-        newPts[i] = interpaPt(oldPts[i],oldPts[i+1],t);
-      }
-
+      for(var i = 0; i < self.derivedPts[pass-1].length-1; i++)
+        interpAPt(self.derivedPts[pass-1][i],self.derivedPts[pass-1][i+1],t,self.derivedPts[pass][i]);
       pass++;
-      skeletonCanvas.context.fillStyle   = self.ptcolors[pass%self.ptcolors.length];
-      skeletonCanvas.context.strokeStyle = self.linecolors[pass%self.linecolors.length];
     }
-    //draw result pt
-    drawPt(newPts[0].x,newPts[0].y,self.ptradius,skeletonCanvas);
-
-    //draw pt on scratch canvas
-    drawRect(newPts[0].x,newPts[0].y,1,1,plotCanvas)
-
-    //actually draw to display
-    displayCanvas.context.fillStyle = self.bgcolor;
-    drawRect(0,0,self.width,self.height,displayCanvas);
-    if(self.grid) blitCanvas(gridCanvas,displayCanvas);
-    blitCanvas(skeletonCanvas,displayCanvas);
-    blitCanvas(plotCanvas,displayCanvas);
-    if(self.ctrls) blitCanvas(hudCanvas,displayCanvas);
-  }
-
-  var ticker;
-  var tick = function()
-  {
-    draw();
-    t+=self.rate;
-    if(t > 1) t = 0;
+    return (self.calculatedPt = self.derivedPts[self.derivedPts.length-1][0]);
   };
 
-  self.play  = function(){ if(!ticker) { tick(); ticker = setInterval(tick,Math.round(1000/self.fps)); } };
-  self.pause = function(){ if(ticker)  ticker = clearInterval(ticker); }
-
-  //editing
-  var ptDragging;
-  function startDrag(evt)
-  {
-    for(var i = 0; i < pixPoints.length; i++)
-    {
-      if(Math.sqrt(Math.pow(pixPoints[i].x-evt.offsetX,2)+Math.pow(pixPoints[i].y-evt.offsetY,2)) < self.ptradius+5)
-        ptDragging = pixPoints[i];
-    }
-
-    if(!ptDragging && self.ctrls)
-    {
-      //clear
-      if(evt.offsetX > self.width-(self.width/10) && evt.offsetY > self.height-(self.width/10))
-      {
-        plotCanvas.context.clearRect(0, 0, self.width, self.height);
-        draw();
-      }
-      //back
-      if(evt.offsetX < (self.width/10) && evt.offsetY > self.height-(self.width/10))
-      {
-        t = 0;
-        draw();
-      }
-      //pause
-      else if(evt.offsetX < (self.width/6) && evt.offsetY > self.height-(self.width/10))
-        self.pause();
-      //play
-      else if(evt.offsetX < (self.width/2) && evt.offsetY > self.height-(self.width/10))
-        self.play();
-    }
-  }
-  function stopDrag()
-  {
-    ptDragging = false;
-  }
-  function drag(evt)
-  {
-    if(!ptDragging) return;
-    ptDragging.x = evt.offsetX;
-    ptDragging.y = evt.offsetY;
-
-    if(!ticker) draw();
-  }
-  if(self.editable)
-  {
-    displayCanvas.addEventListener('mousedown', startDrag, false);
-    displayCanvas.addEventListener('mouseup',   stopDrag,  false);
-    displayCanvas.addEventListener('mousemove', drag,      false);
-  }
-
-  self.play();
+  self.setPts(pts);
 };
 

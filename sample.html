@@ -2,15 +2,15 @@
 <head>
 <title>Spline JS Sample</title>
 <script type="text/javascript" src="spline.js"></script>
+<script type="text/javascript" src="spline-display.js"></script>
 <script type="text/javascript">
 
-var spline;
 var load = function()
 {
-  spline = new Spline(
+  new SplineDisplay(
     {
       "parentContainer":document.getElementById("spline"),
-      "points":[{"x":-1,"y":1},{"x":-1,"y":-1},{"x":1,"y":-1}],
+      "spline":new Spline([[-1,1],[-1,-1],[1,-1]]),
       "xlen":10,
       "ylen":10,
       "width":500,
