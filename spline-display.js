@@ -45,7 +45,7 @@ SplineDisplay = function(params)
     self.parentContainer.width  = 100;
     self.parentContainer.height = 100;
   }
-  if(params.hasOwnProperty('spline'))     self.spline     = params.spline;     else self.spline     = new Spline([[-1,1],[-1,-1],[1,-1]]);
+  if(params.hasOwnProperty('spline'))     self.spline     = params.spline;     else self.spline     = new Spline([[-1,1],[-1,-1],[1,-1],[1,1]]);
   if(params.hasOwnProperty('fps'))        self.fps        = params.fps;        else self.fps        = 60;
   if(params.hasOwnProperty('rate'))       self.rate       = params.rate;       else self.rate       = 0.01;
   if(params.hasOwnProperty('width'))      self.width      = params.width;      else self.width      = 0;
