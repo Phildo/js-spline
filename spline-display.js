@@ -67,7 +67,7 @@ SplineDisplay = function(params)
   var splinePixs = [];
   for(var i = 0; i < self.spline.pts.length; i++)
     splinePixs.push(ptToPix(self.spline.pts[i]));
-  self.spline.setPts(splinePixs);
+  self.renderSpline = new Spline(splinePixs); //the spline calculated in pixels, not points (so we don't have to constantly convert)
 
   //Special cases of inferring certain defaults
   if(!self.xlen && !self.ylen)
@@ -135,10 +135,14 @@ SplineDisplay = function(params)
     gridCanvas.context.strokeStyle = "#BBBBBB";
     gridCanvas.context.lineWidth = 1;
     var pixCoord;
+    var cellWidth = self.width/self.xlen;
+    var cellHeight = self.height/self.ylen;
+    var startX = self.xlen%2 == 0 ? 0 : cellWidth/2;
+    var startY = self.ylen%2 == 0 ? 0 : cellHeight/2;
     for(var x = 0; x < self.xlen; x++) //vertical lines
-      drawLine(self.width/self.xlen*x,0,self.width/self.xlen*x,self.height,gridCanvas);
+      drawLine(startX+cellWidth*x,0,startX+cellWidth*x,self.height,gridCanvas);
     for(var y = 0; y < self.ylen; y++) //horizontal lines
-      drawLine(0,self.height/self.ylen*y,self.width,self.height/self.ylen*y,gridCanvas);
+      drawLine(0,startY+cellHeight*y,self.width,startY+cellHeight*y,gridCanvas);
   }
   if(self.ctrls)
   {
@@ -164,10 +168,11 @@ SplineDisplay = function(params)
   var lastCalculatedPt = [];
   var update = function()
   {
-    self.spline.ptForT(t);
+    self.renderSpline.ptForT(t);
+    self.spline.ptForT(t);//calculate it for real spline as well in case of external queries, and because its cheap 
     //need to copy by value
-    lastCalculatedPt[0] = self.spline.calculatedPt[0];
-    lastCalculatedPt[1] = self.spline.calculatedPt[1];
+    lastCalculatedPt[0] = self.renderSpline.calculatedPt[0];
+    lastCalculatedPt[1] = self.renderSpline.calculatedPt[1];
 
     t+=self.rate;
     if(t == 1+self.rate) t = 0;
@@ -176,19 +181,19 @@ SplineDisplay = function(params)
   var lastDrawnPt = [];
   var draw = function()
   {
-    if(lastCalculatedPt[0] == self.spline.pts[0][0] && lastCalculatedPt[1] == self.spline.pts[0][1]) //if last calculated pt is first pt
+    if(lastCalculatedPt[0] == self.renderSpline.pts[0][0] && lastCalculatedPt[1] == self.renderSpline.pts[0][1]) //if last calculated pt is first pt
       lastDrawnPt = []; //prevent connection line
     clearCanvas(skeletonCanvas);
     var pass = 0;
-    for(var i = 0; i < self.spline.derivedPts.length; i++)
+    for(var i = 0; i < self.renderSpline.derivedPts.length; i++)
     {
       skeletonCanvas.context.fillStyle   = self.ptcolors[pass%self.ptcolors.length];
       skeletonCanvas.context.strokeStyle = self.linecolors[pass%self.linecolors.length];
-      for(var j = 0; j < self.spline.derivedPts[i].length; j++)
+      for(var j = 0; j < self.renderSpline.derivedPts[i].length; j++)
       {
-        drawPt(self.spline.derivedPts[i][j][0],self.spline.derivedPts[i][j][1],self.ptradius,skeletonCanvas);
-        if(j < self.spline.derivedPts[i].length-1)
-          drawLine(self.spline.derivedPts[i][j][0],self.spline.derivedPts[i][j][1],self.spline.derivedPts[i][j+1][0],self.spline.derivedPts[i][j+1][1],skeletonCanvas);
+        drawPt(self.renderSpline.derivedPts[i][j][0],self.renderSpline.derivedPts[i][j][1],self.ptradius,skeletonCanvas);
+        if(j < self.renderSpline.derivedPts[i].length-1)
+          drawLine(self.renderSpline.derivedPts[i][j][0],self.renderSpline.derivedPts[i][j][1],self.renderSpline.derivedPts[i][j+1][0],self.renderSpline.derivedPts[i][j+1][1],skeletonCanvas);
       }
       pass++;
     }
@@ -229,10 +234,10 @@ SplineDisplay = function(params)
   var ptDragging;
   function startDrag(evt)
   {
-    for(var i = 0; i < self.spline.pts.length; i++)
+    for(var i = 0; i < self.renderSpline.pts.length; i++)
     {
-      if(Math.sqrt(Math.pow(self.spline.pts[i][0]-evt.offsetX,2)+Math.pow(self.spline.pts[i][1]-evt.offsetY,2)) < self.ptradius+5)
-        ptDragging = self.spline.pts[i];
+      if(Math.sqrt(Math.pow(self.renderSpline.pts[i][0]-evt.offsetX,2)+Math.pow(self.renderSpline.pts[i][1]-evt.offsetY,2)) < self.ptradius+5)
+        ptDragging = self.renderSpline.pts[i];
     }
 
     if(!ptDragging && self.ctrls)
