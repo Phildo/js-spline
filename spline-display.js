@@ -245,7 +245,7 @@ SplineDisplay = function(params)
       //clear
       if(evt.offsetX > self.width-(self.width/10) && evt.offsetY > self.height-(self.width/10))
       {
-        plotCanvas.context.clearRect(0, 0, self.width, self.height);
+        clearCanvas(plotCanvas);
         draw();
       }
       //back
@@ -267,6 +267,8 @@ SplineDisplay = function(params)
     if(!ptDragging) return;
     ptDragging[0] = evt.offsetX;
     ptDragging[1] = evt.offsetY;
+    clearCanvas(plotCanvas);
+    lastCalculatedPt = []; //prevent connection line
 
     if(!ticker) { draw(); }
   }
