@@ -160,18 +160,18 @@ SplineDisplay = function(params)
     drawLine(self.width-ofow     ,self.height-ofow-otow,self.width-ofow-otow,self.height-ofow,hudCanvas);
   }
 
-  var t = 0;
+  self.t = 0;
   var lastCalculatedPt = [];
   var update = function()
   {
-    self.spline.ptForT(t);
+    self.spline.ptForT(self.t);
     //need to copy by value
     lastCalculatedPt[0] = self.spline.calculatedPt[0];
     lastCalculatedPt[1] = self.spline.calculatedPt[1];
 
-    t+=self.rate;
-    if(t == 1+self.rate) t = 0;
-    if(t > 1) t = 1;
+    self.t+=self.rate;
+    if(self.t == 1+self.rate) self.t = 0;
+    if(self.t > 1) self.t = 1;
   }
   var lastDrawnPt = [];
   var draw = function()
@@ -244,7 +244,7 @@ SplineDisplay = function(params)
         draw();
       }
       //back
-      if(evt.offsetX < (self.width/10) && evt.offsetY > self.height-(self.width/10)) t = 0; 
+      if(evt.offsetX < (self.width/10) && evt.offsetY > self.height-(self.width/10)) self.t = 0; 
       //pause
       else if(evt.offsetX < (self.width/6) && evt.offsetY > self.height-(self.width/10))
         self.pause();
