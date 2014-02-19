@@ -65,8 +65,9 @@ SplineDisplay = function(params)
   if(params.hasOwnProperty('drawcolor'))  self.drawcolor  = params.drawcolor;  else self.drawcolor  = "#FF0000";
   if(params.hasOwnProperty('bgcolor'))    self.bgcolor    = params.bgcolor;    else self.bgcolor    = "#FFFFFF";
   if(params.hasOwnProperty('editable'))   self.editable   = params.editable;   else self.editable   = true;
-  if(params.hasOwnProperty('ctrls'))      self.ctrls      = params.ctrls;      else self.ctrls      = true;
   if(params.hasOwnProperty('grid'))       self.grid       = params.grid;       else self.grid       = true;
+  if(params.hasOwnProperty('updatecallback')) self.updatecallback = params.updatecallback; else self.updatecallback = function(){};
+  if(params.hasOwnProperty('editcallback'))   self.editcallback   = params.editcallback;   else self.editcallback   = function(){};
 
   //catch splines and convert pts to pixels
   self.renderSplines = [];
@@ -77,7 +78,6 @@ SplineDisplay = function(params)
       splinePixs.push(ptToPix(self.splines[i].pts[j]));
     self.renderSplines.push(new Spline(splinePixs)); //the spline calculated in pixels, not points (so we don't have to constantly convert)
   }
-  self.renderSpline = self.renderSplines[0];
 
   //Special cases of inferring certain defaults
   if(!self.xlen && !self.ylen)
@@ -102,7 +102,7 @@ SplineDisplay = function(params)
   displayCanvas.context.imageSmoothingEnabled = false;
   displayCanvas.context.webkitImageSmoothingEnabled = false;
 
-  //draws the points/lines
+  //draws the grid
   var gridCanvas = document.createElement('canvas');
   gridCanvas.context = gridCanvas.getContext('2d');
   gridCanvas.width  = self.width;
@@ -129,17 +129,10 @@ SplineDisplay = function(params)
   plotCanvas.context.webkitImageSmoothingEnabled = false;
   plotCanvas.context.lineWidth = 1;
   plotCanvas.context.strokeStyle = self.drawcolor;
-
-  //draws the grid/controls
-  var hudCanvas = document.createElement('canvas');
-  hudCanvas.context = hudCanvas.getContext('2d');
-  hudCanvas.width  = self.width;
-  hudCanvas.height = self.height;
-  hudCanvas.context.imageSmoothingEnabled = false;
   
   self.parentContainer.appendChild(displayCanvas);
 
-  //draw static hud once
+  //draw static grid once
   if(self.grid)
   {
     gridCanvas.context.strokeStyle = "#BBBBBB";
@@ -154,25 +147,6 @@ SplineDisplay = function(params)
     for(var y = 0; y < self.ylen; y++) //horizontal lines
       drawLine(0,startY+cellHeight*y,self.width,startY+cellHeight*y,gridCanvas);
   }
-  if(self.ctrls)
-  {
-    hudCanvas.context.strokeStyle = "#666666";
-    hudCanvas.context.lineWidth = 5;
-    var otow = self.width/20; //one twentieth of width
-    var ofow = self.width/50; //one fiftieth of width
-    //back
-    drawLine(ofow,self.height-ofow-ofow,ofow+otow,self.height-ofow-ofow-ofow,hudCanvas);
-    drawLine(ofow,self.height-ofow-ofow,ofow+otow,self.height-ofow,hudCanvas);
-    //pause
-    drawLine(otow+ofow+ofow+ofow,self.height-ofow-otow,otow+ofow+ofow+ofow,self.height-ofow,hudCanvas);
-    drawLine(otow+ofow+ofow+otow,self.height-ofow-otow,otow+ofow+ofow+otow,self.height-ofow,hudCanvas);
-    //play
-    drawLine(otow+otow+otow+ofow+otow,self.height-ofow-ofow,otow+otow+otow+ofow,self.height-ofow-ofow-ofow,hudCanvas);
-    drawLine(otow+otow+otow+ofow+otow,self.height-ofow-ofow,otow+otow+otow+ofow,self.height-ofow,hudCanvas);
-    //clear btn
-    drawLine(self.width-ofow-otow,self.height-ofow-otow,self.width-ofow,     self.height-ofow,hudCanvas);
-    drawLine(self.width-ofow     ,self.height-ofow-otow,self.width-ofow-otow,self.height-ofow,hudCanvas);
-  }
 
   var t = 0;
   var lastCalculatedPt = [];
@@ -184,6 +158,8 @@ SplineDisplay = function(params)
     //need to copy by value
     lastCalculatedPt[0] = self.renderSplines[currentSpline].calculatedPt[0];
     lastCalculatedPt[1] = self.renderSplines[currentSpline].calculatedPt[1];
+
+    self.updatecallback(self.splines[currentSpline],self.splines[currentSpline].calculatedPt);
 
     t+=self.rate;
     if(t == 1+self.rate)
@@ -201,6 +177,8 @@ SplineDisplay = function(params)
         currentSpline--;
       }
     }
+
+    self.spline = self.splines[currentSpline]; //in case of external query
   }
   var lastDrawnPt = [];
   var draw = function()
@@ -249,7 +227,6 @@ SplineDisplay = function(params)
     if(self.grid) blitCanvas(gridCanvas,displayCanvas);
     blitCanvas(skeletonCanvas,displayCanvas);
     blitCanvas(plotCanvas,displayCanvas);
-    if(self.ctrls) blitCanvas(hudCanvas,displayCanvas);
   }
 
   var ticker;
@@ -263,7 +240,8 @@ SplineDisplay = function(params)
   self.pause = function(){ if(ticker)  ticker = clearInterval(ticker); }
 
   //editing
-  var ptDragging;
+  var splineBeingDragged = -1;
+  var ptBeingDragged = -1;
   function startDrag(evt)
   {
     
@@ -272,39 +250,34 @@ SplineDisplay = function(params)
       for(var j = 0; j < self.renderSplines[i].pts.length; j++)
       {
         if(Math.sqrt(Math.pow(self.renderSplines[i].pts[j][0]-evt.offsetX,2)+Math.pow(self.renderSplines[i].pts[j][1]-evt.offsetY,2)) < self.ptradius+5)
-          ptDragging = self.renderSplines[i].pts[j];
+        {
+          splineBeingDragged = i;
+          ptBeingDragged = j;
+        }
       }
-    }
-
-    if(!ptDragging && self.ctrls)
-    {
-      //clear
-      if(evt.offsetX > self.width-(self.width/10) && evt.offsetY > self.height-(self.width/10))
-      {
-        clearCanvas(plotCanvas);
-        draw();
-      }
-      //back
-      if(evt.offsetX < (self.width/10) && evt.offsetY > self.height-(self.width/10)) t = 0; 
-      //pause
-      else if(evt.offsetX < (self.width/6) && evt.offsetY > self.height-(self.width/10))
-        self.pause();
-      //play
-      else if(evt.offsetX < (self.width/2) && evt.offsetY > self.height-(self.width/10))
-        self.play();
     }
   }
   function stopDrag()
   {
-    ptDragging = false;
+    splineBeingDragged = -1;
+    ptBeingDragged = -1;
   }
   function drag(evt)
   {
-    if(!ptDragging) return;
-    ptDragging[0] = evt.offsetX;
-    ptDragging[1] = evt.offsetY;
+    if(splineBeingDragged == -1 || ptBeingDragged == -1) return;
+
+    //alter regular spline as well, to keep in sync
+    var newPt = pixToPt([evt.offsetX, evt.offsetY]);
+    self.splines[splineBeingDragged].pts[ptBeingDragged][0] = newPt[0];
+    self.splines[splineBeingDragged].pts[ptBeingDragged][1] = newPt[1];
+    
+    self.renderSplines[splineBeingDragged].pts[ptBeingDragged][0] = evt.offsetX;
+    self.renderSplines[splineBeingDragged].pts[ptBeingDragged][1] = evt.offsetY;
+
     clearCanvas(plotCanvas);
     lastCalculatedPt = []; //prevent connection line
+
+    self.editcallback(self.spline);
 
     if(!ticker) { draw(); }
   }
