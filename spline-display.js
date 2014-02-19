@@ -46,6 +46,8 @@ SplineDisplay = function(params)
     self.parentContainer.height = 100;
   }
   if(params.hasOwnProperty('spline'))     self.spline     = params.spline;     else self.spline     = new Spline([[-1,1],[-1,-1],[1,-1],[1,1]]);
+  if(params.hasOwnProperty('splines'))    self.splines    = params.splines;    else self.splines    = [self.spline];
+  if(params.hasOwnProperty('mode'))       self.mode       = params.mode;       else self.mode       = "sequential";
   if(params.hasOwnProperty('fps'))        self.fps        = params.fps;        else self.fps        = 60;
   if(params.hasOwnProperty('rate'))       self.rate       = params.rate;       else self.rate       = 0.01;
   if(params.hasOwnProperty('width'))      self.width      = params.width;      else self.width      = 0;
@@ -66,11 +68,16 @@ SplineDisplay = function(params)
   if(params.hasOwnProperty('ctrls'))      self.ctrls      = params.ctrls;      else self.ctrls      = true;
   if(params.hasOwnProperty('grid'))       self.grid       = params.grid;       else self.grid       = true;
 
-  //catch spline and convert pts to pixels
-  var splinePixs = [];
-  for(var i = 0; i < self.spline.pts.length; i++)
-    splinePixs.push(ptToPix(self.spline.pts[i]));
-  self.renderSpline = new Spline(splinePixs); //the spline calculated in pixels, not points (so we don't have to constantly convert)
+  //catch splines and convert pts to pixels
+  self.renderSplines = [];
+  for(var i = 0; i < self.splines.length; i++)
+  {
+    var splinePixs = [];
+    for(var j = 0; j < self.splines[i].pts.length; j++)
+      splinePixs.push(ptToPix(self.splines[i].pts[j]));
+    self.renderSplines.push(new Spline(splinePixs)); //the spline calculated in pixels, not points (so we don't have to constantly convert)
+  }
+  self.renderSpline = self.renderSplines[0];
 
   //Special cases of inferring certain defaults
   if(!self.xlen && !self.ylen)
@@ -169,40 +176,58 @@ SplineDisplay = function(params)
 
   var t = 0;
   var lastCalculatedPt = [];
+  var currentSpline = 0;
   var update = function()
   {
-    self.renderSpline.ptForT(t);
-    self.spline.ptForT(t);//calculate it for real spline as well in case of external queries, and because its cheap 
+    self.renderSplines[currentSpline].ptForT(t);
+    self.splines[currentSpline].ptForT(t);//calculate it for real splines as well in case of external queries, and because its cheap 
     //need to copy by value
-    lastCalculatedPt[0] = self.renderSpline.calculatedPt[0];
-    lastCalculatedPt[1] = self.renderSpline.calculatedPt[1];
+    lastCalculatedPt[0] = self.renderSplines[currentSpline].calculatedPt[0];
+    lastCalculatedPt[1] = self.renderSplines[currentSpline].calculatedPt[1];
 
     t+=self.rate;
-    if(t == 1+self.rate) t = 0;
-    if(t > 1) t = 1;
+    if(t == 1+self.rate)
+    {
+      t = 0;
+      currentSpline = 0;
+    }
+    if(t > 1)
+    {
+      t -=1;
+      currentSpline++; //don't do this with modulo- need to manually check anyways
+      if(currentSpline == self.splines.length)
+      {
+        t = 1;
+        currentSpline--;
+      }
+    }
   }
   var lastDrawnPt = [];
   var draw = function()
   {
-    if(lastCalculatedPt[0] == self.renderSpline.pts[0][0] && lastCalculatedPt[1] == self.renderSpline.pts[0][1]) //if last calculated pt is first pt
+    if(lastCalculatedPt[0] == self.renderSplines[0].pts[0][0] && lastCalculatedPt[1] == self.renderSplines[0].pts[0][1]) //if last calculated pt is first pt
       lastDrawnPt = []; //prevent connection line
     clearCanvas(skeletonCanvas);
-    var pass = 0;
-    for(var i = 0; i < self.renderSpline.derivedPts.length; i++)
+
+    for(var i = 0; i < self.renderSplines.length; i++)
     {
-      skeletonCanvas.context.fillStyle   = self.ptcolors[pass%self.ptcolors.length];
-      skeletonCanvas.context.strokeStyle = self.linecolors[pass%self.linecolors.length];
-      for(var j = 0; j < self.renderSpline.derivedPts[i].length; j++)
+      var pass = 0;
+      for(var j = 0; j < self.renderSplines[i].derivedPts.length; j++)
       {
-        if(pass < self.drawpdepth)
-          drawPt(self.renderSpline.derivedPts[i][j][0],self.renderSpline.derivedPts[i][j][1],self.ptradius,skeletonCanvas);
-        if(pass < self.drawldepth)
+        skeletonCanvas.context.fillStyle   = self.ptcolors[pass%self.ptcolors.length];
+        skeletonCanvas.context.strokeStyle = self.linecolors[pass%self.linecolors.length];
+        for(var k = 0; k < self.renderSplines[i].derivedPts[j].length; k++)
         {
-          if(j < self.renderSpline.derivedPts[i].length-1)
-            drawLine(self.renderSpline.derivedPts[i][j][0],self.renderSpline.derivedPts[i][j][1],self.renderSpline.derivedPts[i][j+1][0],self.renderSpline.derivedPts[i][j+1][1],skeletonCanvas);
+          if(pass < self.drawpdepth)
+            drawPt(self.renderSplines[i].derivedPts[j][k][0],self.renderSplines[i].derivedPts[j][k][1],self.ptradius,skeletonCanvas);
+          if(pass < self.drawldepth)
+          {
+            if(k < self.renderSplines[i].derivedPts[j].length-1)
+              drawLine(self.renderSplines[i].derivedPts[j][k][0],self.renderSplines[i].derivedPts[j][k][1],self.renderSplines[i].derivedPts[j][k+1][0],self.renderSplines[i].derivedPts[j][k+1][1],skeletonCanvas);
+          }
         }
+        pass++;
       }
-      pass++;
     }
 
     //draw pt on scratch canvas
@@ -241,10 +266,14 @@ SplineDisplay = function(params)
   var ptDragging;
   function startDrag(evt)
   {
-    for(var i = 0; i < self.renderSpline.pts.length; i++)
+    
+    for(var i = 0; i < self.renderSplines.length; i++)
     {
-      if(Math.sqrt(Math.pow(self.renderSpline.pts[i][0]-evt.offsetX,2)+Math.pow(self.renderSpline.pts[i][1]-evt.offsetY,2)) < self.ptradius+5)
-        ptDragging = self.renderSpline.pts[i];
+      for(var j = 0; j < self.renderSplines[i].pts.length; j++)
+      {
+        if(Math.sqrt(Math.pow(self.renderSplines[i].pts[j][0]-evt.offsetX,2)+Math.pow(self.renderSplines[i].pts[j][1]-evt.offsetY,2)) < self.ptradius+5)
+          ptDragging = self.renderSplines[i].pts[j];
+      }
     }
 
     if(!ptDragging && self.ctrls)
