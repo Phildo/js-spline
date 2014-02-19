@@ -194,7 +194,7 @@ SplineDisplay = function(params)
       skeletonCanvas.context.strokeStyle = self.linecolors[pass%self.linecolors.length];
       for(var j = 0; j < self.renderSpline.derivedPts[i].length; j++)
       {
-        if(pass < self.drawpdepth))
+        if(pass < self.drawpdepth)
           drawPt(self.renderSpline.derivedPts[i][j][0],self.renderSpline.derivedPts[i][j][1],self.ptradius,skeletonCanvas);
         if(pass < self.drawldepth)
         {
