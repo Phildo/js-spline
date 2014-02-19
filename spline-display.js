@@ -239,11 +239,20 @@ SplineDisplay = function(params)
   self.play  = function(){ if(!ticker) { tick(); ticker = setInterval(tick,Math.round(1000/self.fps)); } };
   self.pause = function(){ if(ticker)  ticker = clearInterval(ticker); }
 
+  function addOffsetToEvt(evt)
+  {
+    if(evt.offsetX != undefined) return;
+
+    evt.offsetX = evt.layerX-evt.originalTarget.offsetLeft;
+    evt.offsetY = evt.layerY-evt.originalTarget.offsetTop;
+  }
+
   //editing
   var splineBeingDragged = -1;
   var ptBeingDragged = -1;
   function startDrag(evt)
   {
+    addOffsetToEvt(evt);
     
     for(var i = 0; i < self.renderSplines.length; i++)
     {
@@ -264,6 +273,8 @@ SplineDisplay = function(params)
   }
   function drag(evt)
   {
+    addOffsetToEvt(evt);
+
     if(splineBeingDragged == -1 || ptBeingDragged == -1) return;
 
     //alter regular spline as well, to keep in sync
