@@ -53,10 +53,8 @@ SplineDisplay = function(params)
   if(params.hasOwnProperty('xlen'))       self.xlen       = params.xlen;       else self.xlen       = 0;
   if(params.hasOwnProperty('ylen'))       self.ylen       = params.ylen;       else self.ylen       = 0;
   if(params.hasOwnProperty('origin'))     self.origin     = params.origin;     else self.origin     = "center";
-  if(params.hasOwnProperty('drawlines'))  self.drawlines  = params.drawlines;  else self.drawlines  = true;
-  if(params.hasOwnProperty('drawpts'))    self.drawpts    = params.drawpts;    else self.drawpts    = true;
-  if(params.hasOwnProperty('drawldepth')) self.drawldepth = params.drawldepth; else self.drawldepth  = 0;
-  if(params.hasOwnProperty('drawpdepth')) self.drawpdepth = params.drawpdepth; else self.drawpdepth  = 0;
+  if(params.hasOwnProperty('drawldepth')) self.drawldepth = params.drawldepth; else self.drawldepth = 9999;
+  if(params.hasOwnProperty('drawpdepth')) self.drawpdepth = params.drawpdepth; else self.drawpdepth = 9999;
   if(params.hasOwnProperty('drawplot'))   self.drawplot   = params.drawplot;   else self.drawplot   = true;
   if(params.hasOwnProperty('ptradius'))   self.ptradius   = params.ptradius;   else self.ptradius   = 3;
   if(params.hasOwnProperty('linewidth'))  self.linewidth  = params.linewidth;  else self.linewidth  = 2;
@@ -196,9 +194,9 @@ SplineDisplay = function(params)
       skeletonCanvas.context.strokeStyle = self.linecolors[pass%self.linecolors.length];
       for(var j = 0; j < self.renderSpline.derivedPts[i].length; j++)
       {
-        if(self.drawpts && (self.drawpdepth == 0 || pass < self.drawpdepth))
+        if(pass < self.drawpdepth))
           drawPt(self.renderSpline.derivedPts[i][j][0],self.renderSpline.derivedPts[i][j][1],self.ptradius,skeletonCanvas);
-        if(self.drawlines && (self.drawldepth == 0 || pass < self.drawldepth))
+        if(pass < self.drawldepth)
         {
           if(j < self.renderSpline.derivedPts[i].length-1)
             drawLine(self.renderSpline.derivedPts[i][j][0],self.renderSpline.derivedPts[i][j][1],self.renderSpline.derivedPts[i][j+1][0],self.renderSpline.derivedPts[i][j+1][1],skeletonCanvas);
