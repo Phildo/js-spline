@@ -45,7 +45,7 @@ SplineDisplay = function(params)
     self.parentContainer.width  = 100;
     self.parentContainer.height = 100;
   }
-  if(params.hasOwnProperty('spline'))     self.spline     = params.spline;     else self.spline     = new Spline([[-1,1],[-1,-1],[1,-1],[1,1]]);
+  if(params.hasOwnProperty('spline'))     self.spline     = params.spline;     else self.spline     = new Spline([[-1,1],[-1,-1],[1,-1],[1,1]],0);
   if(params.hasOwnProperty('splines'))    self.splines    = params.splines;    else self.splines    = [self.spline];
   if(params.hasOwnProperty('mode'))       self.mode       = params.mode;       else self.mode       = "sequential";
   if(params.hasOwnProperty('fps'))        self.fps        = params.fps;        else self.fps        = 60;
@@ -76,7 +76,7 @@ SplineDisplay = function(params)
     var splinePixs = [];
     for(var j = 0; j < self.splines[i].pts.length; j++)
       splinePixs.push(ptToPix(self.splines[i].pts[j]));
-    self.renderSplines.push(new Spline(splinePixs)); //the spline calculated in pixels, not points (so we don't have to constantly convert)
+    self.renderSplines.push(new Spline(splinePixs,0)); //the spline calculated in pixels, not points (so we don't have to constantly convert)
   }
 
   //Special cases of inferring certain defaults
@@ -129,7 +129,7 @@ SplineDisplay = function(params)
   plotCanvas.context.webkitImageSmoothingEnabled = false;
   plotCanvas.context.lineWidth = 1;
   plotCanvas.context.strokeStyle = self.drawcolor;
-  
+
   self.parentContainer.appendChild(displayCanvas);
 
   //draw static grid once
@@ -154,7 +154,7 @@ SplineDisplay = function(params)
   var update = function()
   {
     self.renderSplines[currentSpline].ptForT(t);
-    self.splines[currentSpline].ptForT(t);//calculate it for real splines as well in case of external queries, and because its cheap 
+    self.splines[currentSpline].ptForT(t);//calculate it for real splines as well in case of external queries, and because its cheap
     //need to copy by value
     lastCalculatedPt[0] = self.renderSplines[currentSpline].calculatedPt[0];
     lastCalculatedPt[1] = self.renderSplines[currentSpline].calculatedPt[1];
@@ -190,18 +190,18 @@ SplineDisplay = function(params)
     for(var i = 0; i < self.renderSplines.length; i++)
     {
       var pass = 0;
-      for(var j = 0; j < self.renderSplines[i].derivedPts.length; j++)
+      for(var j = 0; j < self.renderSplines[i].derivedPts[0].length; j++)
       {
         skeletonCanvas.context.fillStyle   = self.ptcolors[pass%self.ptcolors.length];
         skeletonCanvas.context.strokeStyle = self.linecolors[pass%self.linecolors.length];
-        for(var k = 0; k < self.renderSplines[i].derivedPts[j].length; k++)
+        for(var k = 0; k < self.renderSplines[i].derivedPts[0][j].length; k++)
         {
           if(pass < self.drawpdepth)
-            drawPt(self.renderSplines[i].derivedPts[j][k][0],self.renderSplines[i].derivedPts[j][k][1],self.ptradius,skeletonCanvas);
+            drawPt(self.renderSplines[i].derivedPts[0][j][k][0],self.renderSplines[i].derivedPts[0][j][k][1],self.ptradius,skeletonCanvas);
           if(pass < self.drawldepth)
           {
-            if(k < self.renderSplines[i].derivedPts[j].length-1)
-              drawLine(self.renderSplines[i].derivedPts[j][k][0],self.renderSplines[i].derivedPts[j][k][1],self.renderSplines[i].derivedPts[j][k+1][0],self.renderSplines[i].derivedPts[j][k+1][1],skeletonCanvas);
+            if(k < self.renderSplines[i].derivedPts[0][j].length-1)
+              drawLine(self.renderSplines[i].derivedPts[0][j][k][0],self.renderSplines[i].derivedPts[0][j][k][1],self.renderSplines[i].derivedPts[0][j][k+1][0],self.renderSplines[i].derivedPts[0][j][k+1][1],skeletonCanvas);
           }
         }
         pass++;
@@ -253,7 +253,7 @@ SplineDisplay = function(params)
   function startDrag(evt)
   {
     addOffsetToEvt(evt);
-    
+
     for(var i = 0; i < self.renderSplines.length; i++)
     {
       for(var j = 0; j < self.renderSplines[i].pts.length; j++)
@@ -281,7 +281,7 @@ SplineDisplay = function(params)
     var newPt = pixToPt([evt.offsetX, evt.offsetY]);
     self.splines[splineBeingDragged].pts[ptBeingDragged][0] = newPt[0];
     self.splines[splineBeingDragged].pts[ptBeingDragged][1] = newPt[1];
-    
+
     self.renderSplines[splineBeingDragged].pts[ptBeingDragged][0] = evt.offsetX;
     self.renderSplines[splineBeingDragged].pts[ptBeingDragged][1] = evt.offsetY;
 
