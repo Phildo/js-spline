@@ -221,7 +221,7 @@ var derivePtsFromPtsMode = function(pts, mode, connect)
       {
         newpts.push(interpAPtGen(pts[i-2],pts[i-1],2,[]));
         newpts.push(interpAPtGen(pts[1],pts[0],2,[]));
-        newpts.push(pts[0]);
+        newpts.push([pts[0][0],pts[0][1]]); //copy of original (rather than ref)
       }
       return newpts;
     }
