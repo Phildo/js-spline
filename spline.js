@@ -206,22 +206,24 @@ var derivePtsFromPtsMode = function(pts, mode, connect)
     {
       var newpts = [];
       var i = 0;
-      while(i < pts.length)
+      while(i+3 < pts.length)
       {
-        if(i < 4) newpts.push(pts[i]);
-        else
-        {
-          newpts.push(interpAPtGen(pts[i-2],pts[i-1],2,[]));
-          newpts.push(pts[i]); i++;
-          newpts.push(pts[i]);
-        }
-        i++;
+        newpts.push(pts[i]);
+        newpts.push(pts[i+1]);
+        newpts.push(interpAPtGen(pts[i+3],pts[i+2],2,[]));
+        i += 2;
       }
       if(connect)
       {
-        newpts.push(interpAPtGen(pts[i-2],pts[i-1],2,[]));
+        newpts.push(pts[i]);
+        newpts.push(pts[i+1]);
         newpts.push(interpAPtGen(pts[1],pts[0],2,[]));
         newpts.push([pts[0][0],pts[0][1]]); //copy of original (rather than ref)
+      }
+      else
+      {
+        while(i < pts.length)
+          newpts.push(pts[i]);
       }
       return newpts;
     }
